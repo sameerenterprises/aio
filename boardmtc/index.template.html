@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTC Generator — Saint-Gobain / Gyproc</title>
+<style>
+  :root{ --ink:#000; --line:#000; }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{ margin:0; font-family:'Segoe UI',Arial,Helvetica,sans-serif; background:#eceff1; color:#111;
+        overflow-x:hidden; -webkit-tap-highlight-color:rgba(21,101,192,.15); }
+
+  /* ---------- FORM (mobile-first) ---------- */
+  .app{ max-width:760px; margin:0 auto; padding:16px; }
+  h1.appttl{ font-size:18px; margin:8px 0 4px; }
+  .sub{ color:#555; font-size:13px; margin:0 0 16px; }
+  fieldset{ border:1px solid #cfd8dc; border-radius:10px; margin:0 0 16px; padding:12px 12px 4px; background:#fff; }
+  legend{ font-weight:600; padding:0 6px; font-size:14px; }
+  label{ display:block; font-size:13px; font-weight:600; margin:10px 0 4px; }
+  input,textarea,select{ width:100%; font-size:16px; padding:11px 10px; border:1px solid #b0bec5; border-radius:8px; font-family:inherit; }
+  textarea{ min-height:96px; resize:vertical; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:560px){ .grid2{ grid-template-columns:1fr; } }
+  /* one product = one compact row: description | qty | remove */
+  .product{ display:grid; grid-template-columns:1fr 92px 40px; gap:8px; align-items:center;
+            border:1px solid #cfd8dc; border-radius:8px; padding:8px; margin:8px 0; background:#fafafa; }
+  /* 16px keeps iOS/Android from auto-zooming the page when a field is focused */
+  .product input{ padding:9px 10px; font-size:16px; }
+  .prod-head{ display:grid; grid-template-columns:1fr 92px 40px; gap:8px; padding:0 8px; }
+  .prod-head span{ font-size:11px; font-weight:700; color:#555; }
+  @media (max-width:520px){
+    .product{ grid-template-columns:1fr 72px 40px; gap:6px; padding:6px; }
+    .prod-head{ grid-template-columns:1fr 72px 40px; gap:6px; padding:0 6px; }
+    .product input{ padding:9px 8px; }
+  }
+  .spec-head,.spec-row{ display:grid; grid-template-columns:2fr 2fr 1fr 34px; gap:6px; align-items:center; }
+  .spec-head span{ font-size:11px; font-weight:700; color:#555; }
+  .spec-row{ margin:6px 0; }
+  .spec-row input{ padding:8px; font-size:14px; }
+  button{ font-size:15px; padding:11px 14px; border-radius:8px; border:1px solid #90a4ae; background:#fff; cursor:pointer; }
+  button.primary{ background:#1565c0; color:#fff; border-color:#1565c0; }
+  button.mini{ padding:8px 10px; font-size:13px; }
+  button.del{ padding:8px; color:#c62828; border-color:#ef9a9a; min-height:40px; }
+  .rowbtns{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .actions{ position:sticky; bottom:0; background:#eceff1; padding:12px 0; display:flex; gap:10px; flex-wrap:wrap; }
+  .hint{ font-size:12px; color:#777; margin:6px 0; }
+
+  /* ---------- MOBILE (phones only — desktop rules above are untouched) ---------- */
+  @media (max-width:560px){
+    .app{ padding:12px 12px 0; }
+    fieldset{ padding:10px 10px 4px; margin-bottom:12px; }
+    h1.appttl{ font-size:17px; }
+    .sub{ margin-bottom:12px; }
+    /* full-width, thumb-friendly action bar that clears the home indicator */
+    .actions{ padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));
+              border-top:1px solid #cfd8dc; gap:8px; }
+    .actions button{ flex:1 1 0; min-width:0; min-height:46px; padding:11px 8px; }
+    textarea{ min-height:84px; }
+  }
+
+  /* ---------- CERTIFICATE (must match reference PDFs) ---------- */
+  .page{
+    width:794px; height:1123px; background:#fff; margin:0 auto;
+    padding:34px 40px; color:#000; position:relative;
+    font-family:'Segoe UI',Arial,Helvetica,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .page-break{ page-break-after:always; }
+  .prtline{ display:flex; justify-content:space-between; font-size:9px; color:#666; }
+  .prtline .c{ position:absolute; left:0; right:0; text-align:center; }
+  .prtwrap{ position:relative; }
+  .sglogo{ text-align:center; margin:10px 0 6px; }
+  .sglogo img{ width:150px; }
+  .hrow{ display:flex; justify-content:space-between; align-items:flex-start; font-size:11px; margin-top:2px; }
+  .hrow .rt{ text-align:right; line-height:1.5; }
+  .doc-title{ text-align:center; font-weight:bold; text-decoration:underline; font-size:16px; margin:10px 0 8px; letter-spacing:.5px; }
+  .certify{ text-align:justify; font-size:11px; line-height:1.55; margin:0 0 10px; }
+
+  table.mtc{ width:100%; border-collapse:collapse; table-layout:fixed; margin-bottom:12px; }
+  table.mtc td,table.mtc th{ border:1px solid #000; padding:2px 6px; font-size:10.5px; vertical-align:middle; word-wrap:break-word; }
+  tr.phead td{ background:#fff; color:#000; font-weight:bold; font-size:11px; }
+  tr.phead .phrow{ display:flex; justify-content:space-between; gap:10px; }
+  tr.phead .phrow .q{ white-space:nowrap; }
+  tr.chead th{ background:#fff; text-align:center; font-weight:bold; font-size:10.5px; }
+  td.c-conf{ text-align:center; }
+
+  .footer{ flex:1; display:flex; flex-direction:column; padding-top:6px; }
+  .frow{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .site .lbl,.qr .lbl{ font-weight:bold; text-decoration:underline; font-size:11px; }
+  .site{ font-size:11px; line-height:1.5; max-width:60%; }
+  .site .a1{ font-weight:bold; }
+  .qr{ text-align:center; }
+  .qr .lbl{ font-size:10px; display:block; margin-bottom:4px; }
+  /* matches the reference PDF exactly: its QR is drawn into a 175x150 box (measured from
+     the placement matrix in 9102024018 MTC.pdf), i.e. slightly wider than tall */
+  .qr img{ width:175px; height:150px; }
+  .note1{ font-size:11px; margin:10px 0 2px; }
+  .note2{ font-size:9px; margin:0 0 8px; }
+  .genby{ font-size:11px; margin:2px 0 6px; padding-left:14px; }
+  .gylogo{ text-align:center; margin:6px 0; }
+  .gylogo img{ width:110px; }
+  .company b{ font-size:11px; }
+  .company .l{ font-size:8px; color:#666; line-height:1.4; }
+  .botline{ display:flex; justify-content:space-between; font-size:9px; color:#666; margin-top:auto; padding-top:8px; }
+
+  /* preview shell */
+  #previewWrap{ background:#eceff1; padding:16px 0; overflow-x:hidden; }
+  /* scaled from the top-left and centred via margin, so the scaled page lands
+     inside the container at any screen width (top-center origin overflowed) */
+  #preview{ transform-origin:top left; width:794px; }
+  /* plain display:none — an off-screen position:fixed container is unreliable when printing */
+  .render-hidden{ display:none; }
+
+  /* ---------- PRINT (Save as PDF) — vector output, matches the reference ---------- */
+  @page{ size:210mm 297mm; margin:0; }
+  @media print{
+    html,body{ margin:0 !important; padding:0 !important; background:#fff !important;
+               overflow:visible !important; height:auto !important; }
+    body>*{ display:none !important; }
+    #renderRoot.printing{ display:block !important; position:static !important; left:auto !important; top:auto !important; }
+    #renderRoot.printing .page{ width:210mm; height:296mm; margin:0; box-shadow:none; overflow:hidden; page-break-after:always; }
+    #renderRoot.printing .page:last-child{ page-break-after:auto; }
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="formApp">
+  <h1 class="appttl">Material Test Certificate — Generator</h1>
+  <p class="sub">Saint-Gobain / Gyproc. Fill the fields, add products, then Preview or Download PDF.</p>
+
+  <fieldset>
+    <legend>Certificate details</legend>
+    <div class="grid2">
+      <div><label>Invoice number</label><input id="invoiceNo" placeholder="9102024018"></div>
+      <div><label>Invoice date (as typed)</label><input id="invoiceDate" placeholder="03-03-2022"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Certificate date &amp; time</label><input id="certDateTime" type="datetime-local"></div>
+      <div><label>SRNO (blank = hide line)</label><input id="srno" placeholder="MTCF96B8B41B"></div>
+    </div>
+    <p class="hint" id="qrUrlHint">QR link: <span></span></p>
+    <label>Site address (one line per row)</label>
+    <textarea id="siteAddress" placeholder="CAPRI LOANS FINANCE&#10;SALAR INDIA CORPORATION&#10;703 7TH FLOOR,&#10;..."></textarea>
+  </fieldset>
+
+  <fieldset>
+    <legend>Products</legend>
+    <datalist id="productDB"></datalist>
+    <div class="prod-head"><span>PRODUCT DESCRIPTION</span><span>QTY (PC)</span><span></span></div>
+    <div id="products"></div>
+    <div class="rowbtns"><button class="mini" onclick="addProduct()">+ Add Product</button></div>
+    <p class="hint">Type or pick a <b>product code</b> — description &amp; all spec rows fill automatically. Max 2 tables per PDF page (auto-paginated).</p>
+  </fieldset>
+
+  <div class="actions">
+    <button class="primary" onclick="doPreview()">Preview</button>
+    <button class="primary" onclick="doDownload()">Download PDF</button>
+    <button class="primary" onclick="doPushWeb()">Push Web Page</button>
+    <button onclick="clearForm()">Clear form</button>
+  </div>
+  <p class="hint"><b>Download PDF</b> saves the A4 certificate straight to your device — no print dialog, on phone and PC. On the phone it lands in <b>Downloads</b>.<br>
+  <b>Push Web Page</b> asks for the MTC number and a GitHub personal access token, then publishes the certificate at
+  <b>https://sameerenterprises.github.io/customer/mtc/&lt;MTC number&gt;.html</b>.</p>
+
+  <div id="previewWrap" style="display:none">
+    <div id="preview"></div>
+  </div>
+</div>
+
+<div id="renderRoot" class="render-hidden"></div>
+
+<!-- html2canvas + jsPDF, inlined by build.js so the app still works offline -->
+<script>{{VENDOR_JS}}</script>
+
+<script>
+// ===== Embedded assets (base64) =====
+const SAINT_GOBAIN_LOGO = "{{SG_LOGO}}";
+const GYPROC_LOGO       = "{{GYPROC}}";
+const QR_CODE           = "{{QR}}";
+
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ===== Fixed values (same on every certificate) =====
+const CUSTOMER    = 'SAMEER ENTERPRISES';
+const STANDARD    = 'IS : 6745-1972/277-1972/IS513:1994';
+const GENERATED_BY= 'L09GEN ICAREMUM';
+const REQUESTED_BY= 'LATIF CHAUDHARY';
+
+// ---- Product database: pick a code and description + spec rows auto-fill.
+//      QTY is NOT here (it changes per order). Conformity is always YES.
+//      Add more products by copying a P(...) line. Every value is editable after fill.
+const P=(code,desc,rows)=>({code,desc,rows:rows.map(([d,r])=>({d,r,c:'YES'}))});
+const PRODUCT_DB=[
+  P('KA5950500943660001','GI-CHANNEL F&C 0.50X50X3660 GYPSERRA',[
+    ['THICKNESS','0.5 (±0.04)MM'],['FLANGE LEFT','32(±0.75)MM'],['FLANGE RIGHT','32(±0.75)MM'],
+    ['LENGTH','3660(±4)MM'],['WEB','94 (+0.5/-0)MM'],['GALVANISING','AZ 150 - 150 GSM'],
+    ['MIN. YIELDSTRENGTH','300'],['SURFACE','COATED WITH ZN - AL ALLOY']]),
+  P('KA56Z0010010000002','SCREW 25MM 1000/BOX',[
+    ['THICKNESS','3.5 X 25'],['SPECIFICATION','IS : 6745-1972/277-1972/IS513:1994'],
+    ['CATEGORY','ACCESSORIES'],['CERTIFICATE DESCRIPTION','METAL'],
+    ['GALVANISING','5 MICRON'],['SURFACE','GREY PHOSPHATE']]),
+  P('KA56Z0010020000002','SCREW 35MM 500/BOX',[
+    ['THICKNESS','3.5 X 35'],['SPECIFICATION','IS : 6745-1972/277-1972/IS513:1994'],
+    ['CATEGORY','ACCESSORIES'],['CERTIFICATE DESCRIPTION','METAL'],
+    ['GALVANISING','5 MICRON'],['SURFACE','GREY PHOSPHATE']]),
+  P('KA56Z0010040000002','SCREW METAL TO METAL 4.2X13MM 500/BOX',[
+    ['THICKNESS','4.2 X 13'],['SPECIFICATION','IS : 6745-1972/277-1972/IS513:1994'],
+    ['CATEGORY','ACCESSORIES'],['CERTIFICATE DESCRIPTION','METAL'],
+    ['GALVANISING','5 MICRON'],['SURFACE','GREY PHOSPHATE']]),
+  P('KA56Z0020010000101','RAWL PLUG 8X45MM',[
+    ['THICKNESS','8MM DIA X 45MM LENGTH'],['SPECIFICATION','IS : 6745-1972/277-1972/IS513:1994'],
+    ['CATEGORY','ACCESSORIES'],['CERTIFICATE DESCRIPTION','METAL'],
+    ['GALVANISING','8 MICRON'],['SURFACE','ZINC PLATING']]),
+  P('KA56Z0060130000001','GI-ANGLE BEED 2440',[
+    ['THICKNESS','0.5 MM'],['SPECIFICATION','IS : 6745-1972/277-1972/IS513:1994'],
+    ['FLANGE LEFT','25MM'],['CATEGORY','GYPSTEEL'],['FLANGE RIGHT','25MM'],
+    ['CERTIFICATE DESCRIPTION','METAL'],['LENGTH','2440(±3)MM'],
+    ['GALVANISING','120 GSM'],['SURFACE','GALVANIZED']]),
+];
+// match a typed/selected value to a DB entry — by description (primary) or code
+function findProduct(v){
+  v=(v||'').trim(); if(!v) return null;
+  const up=v.toUpperCase();
+  return PRODUCT_DB.find(p=>p.desc.toUpperCase()===up)
+      || PRODUCT_DB.find(p=>p.code.toUpperCase()===up.split(' - ')[0].trim())
+      || null;
+}
+
+const $ = id => document.getElementById(id);
+
+// ===================== date helpers =====================
+// Pass a value to render independently of the form (the generated web page has no form).
+function parseCert(val){
+  const el=$('certDateTime');
+  const v = val!==undefined ? val : (el?el.value:'');
+  if(!v) return null;
+  const d=new Date(v);
+  return isNaN(d)?null:d;
+}
+function fmtPrint(d){ // 6/13/22, 3:41 PM
+  let h=d.getHours(), ap=h<12?'AM':'PM'; h=h%12; if(h===0)h=12;
+  const mm=String(d.getMinutes()).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(-2);
+  return `${d.getMonth()+1}/${d.getDate()}/${yy}, ${h}:${mm} ${ap}`;
+}
+function fmtHeaderDate(d){ return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; } // Jun 13, 2022
+function fmtGen(d){ // Jun 13 2022 3:41PM
+  let h=d.getHours(), ap=h<12?'AM':'PM'; h=h%12; if(h===0)h=12;
+  const mm=String(d.getMinutes()).padStart(2,'0');
+  return `${MONTHS[d.getMonth()]} ${d.getDate()} ${d.getFullYear()} ${h}:${mm}${ap}`;
+}
+
+// ===================== products UI =====================
+function addProduct(data){
+  data=data||{code:'',desc:'',qty:'',rows:[]};
+  const wrap=document.createElement('div');
+  wrap.className='product';
+  wrap.innerHTML=`
+    <input class="p-desc" list="productDB" placeholder="Type or pick a product…">
+    <input class="p-qty" type="number" inputmode="numeric" placeholder="Qty">
+    <button class="del" data-a="removeprod" title="Remove product">&times;</button>
+    <div class="p-hidden" style="display:none">
+      <input class="p-code">
+      <div class="specrows"></div>
+    </div>`;
+  $('products').appendChild(wrap);
+  const descInp=wrap.querySelector('.p-desc');
+  const codeInp=wrap.querySelector('.p-code');
+  descInp.value=data.desc;
+  codeInp.value=data.code;
+  wrap.querySelector('.p-qty').value=data.qty;
+  const rowsBox=wrap.querySelector('.specrows');
+  (data.rows.length?data.rows:[{d:'',r:'',c:'YES'}]).forEach(r=>addRow(rowsBox,r));
+
+  // picking a description fills the hidden code + spec rows used to build the PDF
+  const applyProduct=()=>{
+    const prod=findProduct(descInp.value); if(!prod) return;
+    descInp.value=prod.desc;
+    codeInp.value=prod.code;
+    rowsBox.innerHTML='';
+    prod.rows.forEach(r=>addRow(rowsBox,r));
+    save();
+  };
+  descInp.addEventListener('input',applyProduct);
+  descInp.addEventListener('change',applyProduct);
+
+  wrap.addEventListener('click',e=>{
+    const a=e.target.dataset.a;
+    if(a==='addrow'){ addRow(rowsBox,{d:'',r:'',c:'YES'}); }
+    else if(a==='removeprod'){ wrap.remove(); save(); }
+    else if(a==='delrow'){ e.target.closest('.spec-row').remove(); save(); }
+  });
+  wrap.addEventListener('input',save);
+  save();
+}
+function addRow(box,r){
+  const row=document.createElement('div');
+  row.className='spec-row';
+  row.innerHTML=`
+    <input class="s-d" placeholder="THICKNESS">
+    <input class="s-r" placeholder="Range value">
+    <input class="s-c" placeholder="YES">
+    <button class="del" data-a="delrow">&times;</button>`;
+  row.querySelector('.s-d').value=r.d||'';
+  row.querySelector('.s-r').value=r.r||'';
+  row.querySelector('.s-c').value=(r.c===undefined?'YES':r.c);
+  box.appendChild(row);
+}
+
+// ===================== collect / persist =====================
+function collect(){
+  const products=[...document.querySelectorAll('.product')].map(p=>({
+    code:p.querySelector('.p-code').value.trim(),
+    desc:p.querySelector('.p-desc').value.trim(),
+    qty:p.querySelector('.p-qty').value.trim(),
+    rows:[...p.querySelectorAll('.spec-row')].map(r=>({
+      d:r.querySelector('.s-d').value,
+      r:r.querySelector('.s-r').value,
+      c:r.querySelector('.s-c').value
+    })).filter(x=>x.d||x.r)
+  }));
+  const d=parseCert();
+  return {
+    customer:CUSTOMER, invoiceNo:$('invoiceNo').value, invoiceDate:$('invoiceDate').value,
+    certDateTime:$('certDateTime').value, srno:$('srno').value.trim(), standard:STANDARD,
+    siteAddress:$('siteAddress').value, generatedBy:GENERATED_BY,
+    requestedBy:REQUESTED_BY, genDateTime:d?fmtGen(d):'', products
+  };
+}
+function save(){ try{ localStorage.setItem('mtc', JSON.stringify(collect())); }catch(e){} }
+function load(){
+  let d; try{ d=JSON.parse(localStorage.getItem('mtc')); }catch(e){}
+  if(!d) return false;
+  ['invoiceNo','invoiceDate','certDateTime','srno','siteAddress']
+    .forEach(k=>{ if(d[k]!==undefined) $(k).value=d[k]; });
+  (d.products||[]).forEach(p=>addProduct(p));
+  return true;
+}
+function clearForm(){
+  if(!confirm('Clear the whole form?'))return;
+  localStorage.removeItem('mtc'); location.reload();
+}
+// live preview of the link the QR will encode
+function refreshQrHint(){
+  const el=$('qrUrlHint'); if(!el) return;
+  el.querySelector('span').textContent=mtcUrl($('srno').value);
+}
+document.addEventListener('input',e=>{
+  if(e.target.closest('#formApp') && !e.target.closest('.product')) save();
+  if(e.target.id==='srno') refreshQrHint();
+});
+
+// ===================== certificate rendering =====================
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ---- per-certificate QR: encodes MTC_BASE_URL + SRNO ----
+const MTC_BASE_URL='https://sameerenterprises.github.io/customer/mtc/';
+function mtcUrl(srno){ return MTC_BASE_URL+encodeURIComponent((srno||'').trim())+'.html'; }
+
+const _qrCache={};
+// Draws the QR to a canvas rather than using createDataURL(): gives an exact-resolution
+// PNG with a proper 4-module quiet zone, which html2canvas rasterises cleanly.
+function qrDataUrl(text){
+  if(_qrCache[text]) return _qrCache[text];
+  if(typeof qrcode!=='function') return QR_CODE;      // library missing → embedded fallback
+  try{
+    const qr=qrcode(0,'M');                            // 0 = auto-pick the smallest version
+    qr.addData(text);
+    qr.make();
+    const n=qr.getModuleCount(), quiet=4, total=n+quiet*2, cell=8;
+    const size=total*cell;
+    const c=document.createElement('canvas');
+    c.width=c.height=size;
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,size,size);
+    ctx.fillStyle='#000000';
+    for(let r=0;r<n;r++) for(let col=0;col<n;col++)
+      if(qr.isDark(r,col)) ctx.fillRect((col+quiet)*cell,(r+quiet)*cell,cell,cell);
+    return _qrCache[text]=c.toDataURL('image/png');
+  }catch(e){
+    return QR_CODE;
+  }
+}
+
+// `web` = rendering the hosted page the QR points at: it drops the browser-print
+// artefacts (the top date/title strip and the bottom url/page line).
+function headerHTML(data, pageIdx, total, web){
+  const d=parseCert(data.certDateTime);
+  const printLeft = d?fmtPrint(d):'';
+  const headDate  = d?fmtHeaderDate(d):'';
+  const srnoLine = data.srno
+    ? `<div>SRNO - <b>${esc(data.srno)}</b></div>` : '';
+  const cust=esc(data.customer), inv=esc(data.invoiceNo), invd=esc(data.invoiceDate), std=esc(data.standard);
+  return `
+  ${web?'':`<div class="prtwrap"><div class="prtline"><span>${printLeft}</span><span class="c">Manufacturing Test Certificate</span><span></span></div></div>`}
+  <div class="sglogo"><img src="${SAINT_GOBAIN_LOGO}"></div>
+  <div class="hrow">
+    <div>${headDate}</div>
+    <div class="rt">${srnoLine}<div>Page - ${pageIdx} out of ${total}</div></div>
+  </div>
+  <div class="doc-title">MATERIAL TEST CERTIFICATE</div>
+  <p class="certify">This is to certify that METAL as supplied to <b>M/s. ${cust}</b> against our invoice number : <b>${inv}</b> , dated : ${invd} are tested and confirm to the below specification under <b>${std}</b>.</p>`;
+}
+
+function tableHTML(p, web){
+  const rows=(p.rows||[]).map(r=>`
+    <tr><td class="c-desc">${esc(r.d)}</td><td class="c-range">${esc(r.r)}</td><td class="c-conf">${esc(r.c)}</td></tr>`).join('');
+  const title=[p.code,p.desc].filter(Boolean).join(' - ');
+  const qty=`QTY - ${esc(p.qty)} (PC)`;
+  // PDF: one undivided banner (matches the printed reference).
+  // Web: the QTY sits in its own cell lined up with the CONFORMITY column.
+  const phead = web
+    ? `<tr class="phead"><td colspan="2">${esc(title)}</td><td class="c-qty">${qty}</td></tr>`
+    : `<tr class="phead"><td colspan="3"><div class="phrow"><span>${esc(title)}</span><span class="q">${qty}</span></div></td></tr>`;
+  return `
+  <table class="mtc">
+    ${web?'':'<colgroup><col style="width:46%"><col style="width:30%"><col style="width:24%"></colgroup>'}
+    ${phead}
+    <tr class="chead"><th>DESCRIPTION</th><th>RANGE</th><th>CONFORMITY</th></tr>
+    ${rows}
+  </table>`;
+}
+
+function footerHTML(data, page, total, web){
+  const addr=(data.siteAddress||'').split('\n');
+  const addrHTML=addr.map((l,i)=>i===0?`<div class="a1">${esc(l)}</div>`:`<div>${esc(l)}</div>`).join('');
+  const gen=esc(data.generatedBy), gdt=esc(data.genDateTime), req=esc(data.requestedBy);
+  return `
+  <div class="footer">
+    <div class="frow">
+      <div class="site"><div class="lbl">SITE ADDRESS :</div>${addrHTML}</div>
+      <div class="qr"><span class="lbl">Please scan QR to authenticate MTC</span><img src="${qrDataUrl(mtcUrl(data.srno))}"></div>
+    </div>
+    <div class="note1">Note : This is Computer generated material test certificate and hence requires no signature.</div>
+    <div class="note2">Note : This is Just a Material Test Report for an individual product and cannot be produced as System Performance Test Report (for Fire/Acoustic).</div>
+    <div class="genby">- Generated by <b>${gen}</b> on <b>${gdt}</b> as requested by <b>${req}</b></div>
+    <div class="gylogo"><img src="${GYPROC_LOGO}"></div>
+    <div class="company">
+      <b>Saint-Gobain India Private Limited &ndash; Gyproc Business</b>
+      <div class="l">Corporate Off : 5th Level, Leela Business Park, Andheri Kurla Road, Andheri (E), Mumbai &ndash; 400 059, Board +91-022-40212121 , Fax +91-022-40212390,</div>
+      <div class="l">Regd. Office : Sigapi Aachi Buidling, 7 th Floor, 18/3, Rukmini Lakshmipathy Road, Egmore, Chennai &ndash; 600 008, Tamil Nadu, Tel +91-044-45936000, Fax +91-044-45936008,CIN: U26109TN1997PTC037875</div>
+    </div>
+    ${web?'':`<div class="botline"><span>https://sggilnewapps.saint-gobain.com/TestCert1/MTC_Certificate.aspx</span><span>${page}/${total}</span></div>`}
+  </div>`;
+}
+
+function buildPages(data, web){
+  const prods=data.products.length?data.products:[{code:'',desc:'',qty:'',rows:[]}];
+  const chunks=[];
+  for(let i=0;i<prods.length;i+=2) chunks.push(prods.slice(i,i+2));
+  const total=chunks.length;
+  return chunks.map((chunk,i)=>{
+    const isLast=i===total-1;
+    return `<div class="page${isLast?'':' page-break'}">
+      ${headerHTML(data,i+1,total,web)}
+      <div class="body">${chunk.map(p=>tableHTML(p,web)).join('')}</div>
+      ${footerHTML(data,i+1,total,web)}
+    </div>`;
+  }).join('');
+}
+
+// ===================== hosted web certificate (what the QR opens) =====================
+// The supplied Gyproc watermark artwork (1280x720). It is smaller than a full page, so it
+// is tiled at its natural size — each copy starts where the previous one ends.
+const WATERMARK='{{WATERMARK}}';
+
+const WEB_CSS=`
+/* all text is the same near-black — no warm/reddish tint anywhere */
+:root{ --ink:#1a1a1a; --dark:#1a1a1a; --tink:#1a1a1a;
+       --head:#f6eabe; --conf:#8bbdd9; --cell:#d3d3d3; --line:#c9c9c9; }
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{ margin:0; font-family:'Segoe UI',Arial,Helvetica,sans-serif; color:var(--dark);
+      background-color:#fff;
+      background-image:url("${WATERMARK}");
+      background-repeat:repeat;          /* tiles down the full page height */
+      background-size:1280px 720px;      /* the artwork's natural size */
+      background-position:top left; }
+.page{ max-width:1180px; margin:0 auto; padding:26px 28px 40px; }
+.page+.page{ border-top:1px solid #e2e2e2; }
+.sglogo{ text-align:center; margin:4px 0 10px; }
+.sglogo img{ width:170px; max-width:45%; }
+.hrow{ display:flex; justify-content:space-between; align-items:flex-start; font-size:15px; gap:12px; }
+.hrow .rt{ text-align:right; line-height:1.6; }
+.doc-title{ text-align:center; font-weight:700; text-decoration:underline; font-size:21px; margin:16px 0 18px; }
+.certify{ font-size:15px; line-height:1.6; margin:0 0 22px; text-align:justify; }
+.tblwrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:22px; }
+/* separated cells: the reference shows thin WHITE gaps between the coloured cells,
+   with a single grey rule around the outside of the table */
+table.mtc{ border-collapse:separate; border-spacing:2px; margin:0 auto;
+  background:#fff; border:1px solid var(--line); }
+/* opaque cells so the watermark does not read through the table, as in the reference */
+table.mtc td, table.mtc th{ border:0; padding:9px 13px; font-size:14px;
+  text-align:left; color:var(--tink); vertical-align:middle; background:#fff; }
+/* both banner rows are cream — the blue is the CONFORMITY data column only */
+table.mtc tr.phead td, table.mtc tr.chead th{ background:var(--head); font-weight:700; }
+table.mtc td.c-qty{ white-space:nowrap; }
+/* these must out-specify the "table.mtc td" base rule above, hence the table.mtc prefix */
+table.mtc td.c-desc, table.mtc td.c-range{ background:var(--cell); }
+table.mtc td.c-conf{ background:var(--conf); }
+.frow{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:18px; }
+.site{ font-size:15px; line-height:1.65; color:var(--ink); }
+.site .lbl{ font-weight:700; text-decoration:underline; }
+.site .a1{ font-weight:700; }
+.qr{ text-align:center; flex:0 0 auto; }
+.qr .lbl{ display:block; font-size:13px; font-weight:700; text-decoration:underline;
+          color:var(--ink); margin-bottom:10px; }
+.qr img{ width:175px; height:175px; }
+.note1{ font-size:15px; margin:14px 0 10px; }
+.note2{ font-size:14px; margin:0 0 14px; }
+.genby{ font-size:15px; margin:0 0 10px; }
+.gylogo{ text-align:center; margin:14px 0; }
+.gylogo img{ width:130px; max-width:38%; }
+.company{ border-top:1px solid #e2e2e2; padding-top:10px; }
+.company b{ font-size:14px; color:var(--ink); }
+.company .l{ font-size:11.5px; color:#6b6b6b; line-height:1.55; }
+/* ---- phone: matches the reference mobile layout ---- */
+@media (max-width:700px){
+  .page{ padding:12px 10px 22px; }
+  .sglogo{ margin:2px 0 6px; }
+  .sglogo img{ width:130px; }
+  .hrow{ font-size:11.5px; }
+  .doc-title{ font-size:14.5px; margin:10px 0 10px; }
+  .certify{ font-size:11.5px; line-height:1.5; margin:0 0 12px; }
+  /* tables fill the width instead of shrinking to content, as in the reference */
+  .tblwrap{ margin-bottom:14px; }
+  table.mtc{ width:100%; }
+  table.mtc td, table.mtc th{ padding:5px 6px; font-size:10.5px; overflow-wrap:anywhere; }
+  table.mtc td.c-qty{ white-space:normal; }
+  /* pin the proportions: a long DESCRIPTION would otherwise starve the CONFORMITY
+     column and wrap its heading onto two lines */
+  table.mtc tr.chead th:nth-child(1){ width:48%; }
+  table.mtc tr.chead th:nth-child(2){ width:27%; }
+  table.mtc tr.chead th:nth-child(3){ width:25%; }
+  /* site address and QR stay side by side on the phone too */
+  .frow{ flex-direction:row; align-items:flex-start; gap:10px; margin-bottom:12px; }
+  .site{ font-size:11px; line-height:1.5; }
+  .qr .lbl{ font-size:9px; margin-bottom:6px; }
+  .qr img{ width:110px; height:110px; }
+  .note1{ font-size:11.5px; margin:10px 0 8px; }
+  .note2{ font-size:11px; margin:0 0 10px; }
+  .genby{ font-size:11.5px; }
+  .gylogo img{ width:90px; }
+  .company b{ font-size:11.5px; }
+  .company .l{ font-size:9px; }
+  /* scale the tile down so the pattern still reads on a narrow screen */
+  body{ background-size:760px 428px; }
+}`;
+
+// A complete, self-contained page — everything inlined so it can just be dropped
+// into the repo with no other files.
+function buildWebPage(data){
+  const title=`MTC ${data.srno||data.invoiceNo||''}`.trim();
+  const body=buildPages(data,true)
+    .replace(/<table class="mtc">/g,'<div class="tblwrap"><table class="mtc">')
+    .replace(/<\/table>/g,'</table></div>');
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<style>${WEB_CSS}</style>
+</head>
+<body>
+${body}
+</body>
+</html>`;
+}
+
+async function doPushWeb(){
+  save();
+  const data=collect();
+  const mtcNumber=(prompt('MTC number to publish:', (data.srno||'').trim())||'').trim();
+  if(!mtcNumber) return;
+  const token=(prompt('GitHub personal access token (used only for this publish):')||'').trim();
+  if(!token) { alert('A GitHub personal access token is required to publish the page.'); return; }
+  const path='customer/mtc/'+encodeURIComponent(mtcNumber)+'.html';
+  const api='https://api.github.com/repos/sameerenterprises/customer/contents/'+path;
+  const headers={Accept:'application/vnd.github+json',Authorization:'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28'};
+  try{
+    let sha;
+    const existing=await fetch(api,{headers});
+    if(existing.ok) sha=(await existing.json()).sha;
+    else if(existing.status!==404) throw new Error((await existing.json()).message||'Could not check the destination file.');
+    const pageData={...data,srno:mtcNumber};
+    const payload={message:'Publish MTC '+mtcNumber,content:btoa(unescape(encodeURIComponent(buildWebPage(pageData)))),branch:'main'};
+    if(sha) payload.sha=sha;
+    const response=await fetch(api,{method:'PUT',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!response.ok){ const error=await response.json(); throw new Error(error.message||'GitHub rejected the publish request.'); }
+    const url=mtcUrl(mtcNumber);
+    alert('Published successfully. It may take a minute to appear.');
+    window.open(url,'_blank','noopener');
+  }catch(error){ alert('Could not publish the page: '+error.message); }
+}
+
+// ===================== actions =====================
+function doPreview(){
+  save();
+  const pv=$('preview'), wrap=$('previewWrap');
+  pv.innerHTML=buildPages(collect());
+  wrap.style.display='block';
+  // scale to fit, centre the scaled result, then reserve its height (transform doesn't reflow)
+  const scale=Math.min(1, (wrap.clientWidth-8)/794);
+  pv.style.transform=`scale(${scale})`;
+  pv.style.height='';
+  pv.style.marginLeft=Math.max(0,(wrap.clientWidth-794*scale)/2)+'px';
+  wrap.style.height = (pv.scrollHeight*scale+16)+'px';
+  wrap.scrollIntoView({behavior:'smooth'});
+}
+
+// Builds the PDF in-page with html2canvas + jsPDF and saves it straight to the device —
+// no print dialog on phone or PC. Each .page is captured on its own, which keeps the
+// output identical regardless of window size (capturing the whole multi-page container
+// is what previously produced shifted / blank pages).
+function doDownload(){
+  save();
+  const data=collect();
+  const filename=`MTC_${(data.invoiceNo||'certificate').replace(/[^\w.-]/g,'_')}.pdf`;
+  const root=$('renderRoot');
+  root.classList.remove('printing');
+  root.innerHTML=buildPages(data);
+
+  if(!window.html2canvas || !window.jspdf){    // libraries missing → fall back to printing
+    root.classList.add('printing');
+    window.print();
+    return;
+  }
+
+  // html2canvas only captures reliably when the nodes are on-screen and the page is
+  // scrolled to the top, so render at 0,0 behind an opaque overlay.
+  const prevScroll=window.scrollY;
+  root.className='';
+  root.style.cssText='position:absolute;left:0;top:0;width:794px;background:#fff;z-index:1';
+  const overlay=document.createElement('div');
+  overlay.setAttribute('data-html2canvas-ignore','true');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(255,255,255,.97);z-index:2147483600;'+
+    'display:flex;align-items:center;justify-content:center;font:600 16px \'Segoe UI\',Arial,sans-serif;color:#1565c0';
+  overlay.textContent='Preparing PDF…';
+  document.body.appendChild(overlay);
+  window.scrollTo(0,0);
+
+  const cleanup=()=>{
+    overlay.remove();
+    root.className='render-hidden'; root.style.cssText=''; root.innerHTML='';
+    window.scrollTo(0,prevScroll);
+  };
+
+  // let the overlay paint before the (blocking) canvas work starts. setTimeout rather
+  // than requestAnimationFrame: rAF never fires while a tab is hidden/not compositing,
+  // which would leave the download silently stuck.
+  setTimeout(async()=>{
+    try{
+      const pages=[...root.querySelectorAll('.page')];
+      const pdf=new window.jspdf.jsPDF({unit:'px',format:[794,1123],orientation:'portrait',compress:true});
+      for(let i=0;i<pages.length;i++){
+        overlay.textContent=pages.length>1?`Preparing PDF… ${i+1}/${pages.length}`:'Preparing PDF…';
+        const canvas=await html2canvas(pages[i],{
+          scale:2, useCORS:true, backgroundColor:'#ffffff', logging:false,
+          scrollX:0, scrollY:0, windowWidth:794, windowHeight:1123
+        });
+        if(i) pdf.addPage([794,1123],'portrait');
+        pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,794,1123);
+      }
+      pdf.save(filename);
+    }catch(e){
+      alert('Could not create the PDF.\n\n'+(e&&e.message?e.message:e));
+    }finally{
+      cleanup();
+    }
+  },60);
+}
+
+// ===================== boot =====================
+(function init(){
+  // decode the embedded images up front — print() now runs synchronously on click,
+  // so there is no delay in which they could still be decoding.
+  [SAINT_GOBAIN_LOGO,GYPROC_LOGO,QR_CODE].forEach(src=>{ const i=new Image(); i.src=src; });
+  // populate the shared autocomplete list once (search by description)
+  $('productDB').innerHTML = PRODUCT_DB.map(p=>`<option value="${esc(p.desc)}"></option>`).join('');
+  if(!load()){ addProduct(); }
+  refreshQrHint();
+})();
+</script>
+</body>
+</html>
