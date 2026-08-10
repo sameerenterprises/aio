@@ -81,6 +81,12 @@
         <option value="Name: SFL Enterprises, UPID: sflenterprises1@oksbi">SFL UPI</option>
       </select>
     </div>
+    
+    <!-- GST Mode -->
+    <div class="input-group" style="display:flex; align-items:center; gap:10px;">
+      <label for="gstMode">GST Mode</label>
+      <input type="checkbox" id="gstMode" style="width:auto; margin:0;">
+    </div>
 
     <!-- Table Section -->
     <table id="outputTable">
@@ -261,7 +267,74 @@
       document.getElementById("billNumberDisplay").textContent = `Bill Number: ${String(lastBillNumber + 1).padStart(4, '0')}`;
     }
 
+    function getActualCostPrice(productDetails) {
+      const costPrice = parseFloat(productDetails[4]) || 0;
+      const gstPercentage = parseFloat(productDetails[3]) || 0;
+    
+      const gstMode = document.getElementById("gstMode").checked;
+    
+      if (gstMode) {
+        // GST ON:
+        // Base cost price is treated as the actual cost price
+        return costPrice;
+      } else {
+        // GST OFF:
+        // Cost price + GST is treated as the actual cost price
+        return costPrice + (costPrice * gstPercentage / 100);
+      }
+    }
 
+  function recalculateAllMargins() {
+    history.forEach(item => {
+      const productDetails = products[item.code] || customProducts[item.code];
+  
+      // Ignore GST/round-off rows
+      if (!productDetails || ["cgst", "sgst", "igst", "roff"].includes(item.code)) {
+        return;
+      }
+  
+      const costPrice = parseFloat(productDetails[4]) || 0;
+      const gstPercentage = parseFloat(productDetails[3]) || 0;
+  
+      if (costPrice > 0) {
+        const actualCostPrice = getActualCostPrice(productDetails);
+  
+        // Get selling price from the stored unit price
+        const sellingPrice = parseFloat(item.newpricePerUnit) || 0;
+  
+        const marginPerUnit = sellingPrice - actualCostPrice;
+  
+        item.margin = parseFloat(
+          (marginPerUnit * item.quantity).toFixed(2)
+        );
+  
+        item.marginPercentage = actualCostPrice > 0
+          ? parseFloat(
+              ((marginPerUnit / actualCostPrice) * 100).toFixed(2)
+            )
+          : 0;
+  
+        item.marginDisplay =
+          `₹${item.margin} (${item.marginPercentage}%)`;
+  
+        item.marginClass =
+          item.margin >= 0
+            ? "margin-positive"
+            : "margin-negative";
+      } else {
+        item.margin = 0;
+        item.marginPercentage = 0;
+        item.marginDisplay = "";
+        item.marginClass = "";
+      }
+    });
+  
+    renderTable();
+  }
+  
+  document.getElementById("gstMode").addEventListener("change", function () {
+    recalculateAllMargins();
+  });
 
     function addProduct() {
       const input = document.getElementById("productInput").value.trim().replace(/ /g, '*');
@@ -328,7 +401,8 @@
       const gstPercentage = productDetails[3];
       
       // Calculate actual cost price with GST
-      const actualCostPrice = costPrice > 0 ? costPrice + (costPrice * gstPercentage / 100) : 0;
+      // Calculate actual cost price according to GST Mode
+      const actualCostPrice = getActualCostPrice(productDetails); 
       
       const newpricePerUnit = quantity == 1 && unit == "" ? "" : `${pricePerUnit}`;
       const displayQuantity = quantity == 1 && unit == "" ? "" : `${quantity}`;
@@ -339,13 +413,25 @@
       let marginPercentage = 0;
       let marginDisplay = "";
       
-      if (costPrice > 0) {
-        const sellingPrice = amount === 0 ? productDetails[2] : pricePerUnit;
-        const costWithGST = costPrice + (costPrice * gstPercentage / 100);
-        margin = parseFloat(((sellingPrice - costPrice) * quantity).toFixed(2));
-        marginPercentage = parseFloat(((sellingPrice - costPrice) / costPrice * 100).toFixed(2));
-        marginDisplay = `₹${margin} (${marginPercentage}%)`;
-      }
+  if (costPrice > 0) {
+    const sellingPrice = amount === 0 ? productDetails[2] : pricePerUnit;
+  
+    const actualCostPrice = getActualCostPrice(productDetails);
+  
+    const marginPerUnit = sellingPrice - actualCostPrice;
+  
+    margin = parseFloat(
+      (marginPerUnit * quantity).toFixed(2)
+    );
+  
+    marginPercentage = actualCostPrice > 0
+      ? parseFloat(
+          ((marginPerUnit / actualCostPrice) * 100).toFixed(2)
+        )
+      : 0;
+  
+    marginDisplay = `₹${margin} (${marginPercentage}%)`;
+  }
       
       let calculatedAmount = finalAmount;
 
