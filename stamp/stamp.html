@@ -18,7 +18,6 @@
              background:#444; color:#eee; cursor:pointer; }
   #bar button:disabled { opacity:.4; }
   #save { background:#2d7d46; border-color:#2d7d46; font-weight:600; }
-  #layersBtn { display:none; }
   #hint { border:0; background:none; cursor:default; opacity:.6; padding-left:0; }
 
   #main { flex:1; display:flex; min-height:0; }
@@ -38,42 +37,14 @@
             background:#4a9eff; border:2px solid #fff; border-radius:50%;
             cursor:nwse-resize; touch-action:none; display:none; }
   .sig.sel .h { display:block; }
+  .sig .x { position:absolute; top:-10px; right:-10px; width:22px; height:22px;
+             display:none; padding:0; border:2px solid #fff; border-radius:50%;
+             background:#d92d20; color:#fff; font:700 17px/16px system-ui; cursor:pointer; }
+  .sig.sel .x { display:block; }
   @media (pointer:coarse) { .sig .h { width:26px; height:26px; right:-13px; bottom:-13px; } }
-
-  #panel { width:260px; flex:0 0 auto; background:#323639; border-left:1px solid #1a1c1e;
-           display:flex; flex-direction:column; }
-  #panel h3 { margin:0; padding:10px 12px; font-size:12px; letter-spacing:.08em;
-              text-transform:uppercase; opacity:.6; border-bottom:1px solid #1a1c1e; }
-  #list { flex:1; overflow:auto; }
-  #list .empty { padding:16px 12px; opacity:.5; font-size:13px; }
-  .row { display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer;
-         border-bottom:1px solid #2a2d2f; }
-  .row.sel { background:#1e4976; }
-  .row .thumb { width:44px; height:26px; flex:0 0 auto; background:#fff; border-radius:3px;
-                object-fit:contain; }
-  .row .meta { flex:1; min-width:0; }
-  .row .nm { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .row .pg { font-size:11px; opacity:.55; }
-  .row button { background:none; border:0; color:#eee; font-size:15px; cursor:pointer;
-                padding:4px 6px; border-radius:4px; }
-  .row button:hover { background:#ffffff22; }
-  .row.hidden .thumb, .row.hidden .meta { opacity:.35; }
-  #props { border-top:1px solid #1a1c1e; padding:10px 12px; display:none; }
-  #props.on { display:block; }
-  #props label { display:block; font-size:12px; opacity:.7; margin:8px 0 2px; }
-  #props input[type=range] { width:100%; }
-  #props button { width:100%; margin-top:12px; padding:8px; border-radius:6px;
-                  border:1px solid #e5484d; background:none; color:#e5484d; cursor:pointer; }
 
   @media (max-width:820px) {
     #hint { display:none; }
-    #layersBtn { display:block; }
-    #panel { position:fixed; left:0; right:0; bottom:0; top:auto; width:auto; height:55vh;
-             z-index:20; border-top:1px solid #1a1c1e; border-radius:14px 14px 0 0;
-             transform:translateY(102%); transition:transform .2s; box-shadow:0 -4px 20px #0006; }
-    #panel.open { transform:none; }
-    #panel h3::after { content:'  ▾  tap to close'; opacity:.5; }
-    #panel h3 { cursor:pointer; }
   }
 </style>
 </head>
@@ -84,24 +55,12 @@
   <select id="sigSel"></select>
   <label>＋ PNG<input type="file" accept="image/png,image/jpeg" id="sigIn" hidden multiple></label>
   <button id="sigDel" title="Remove the selected signature from the list">🗑</button>
-  <button id="layersBtn">Layers</button>
   <button id="save" disabled>✓ Confirm &amp; Download</button>
   <span id="hint">Pick a signature, then click on the page to drop it. Drag to move, blue dot to resize.</span>
 </div>
 
 <div id="main">
   <div id="viewer"><div id="stageBox"><div id="stage"></div></div></div>
-  <aside id="panel">
-    <h3 id="panelHead">Layers</h3>
-    <div id="list"></div>
-    <div id="props">
-      <label>Opacity <span id="opVal">100%</span></label>
-      <input type="range" id="op" min="10" max="100" value="100">
-      <label>Size <span id="szVal">25%</span></label>
-      <input type="range" id="sz" min="4" max="100" value="25">
-      <button id="del">Delete layer</button>
-    </div>
-  </aside>
 </div>
 
 <script>
@@ -110,7 +69,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 const $ = s => document.querySelector(s);
 const viewer = $('#viewer'), stage = $('#stage'), stageBox = $('#stageBox');
-const sigSel = $('#sigSel'), list = $('#list'), props = $('#props'), saveBtn = $('#save');
+const sigSel = $('#sigSel'), saveBtn = $('#save');
 let pdfBytes = null, fileName = 'signed.pdf', fitScale = 1, justDragged = false;
 
 /* ---------- signature library ---------- */
@@ -252,7 +211,7 @@ async function place(overlay, clientX, clientY) {
   const box = document.createElement('div');
   box.className = 'sig';
   box.dataset.name = name;
-  box.innerHTML = `<img src="${src}"><div class="h"></div>`;
+  box.innerHTML = `<img src="${src}"><button class="x" title="Remove image">×</button><div class="h"></div>`;
   const img = box.querySelector('img');
   img.onload = () => {
     const w = 900 * 0.25, h = w * img.naturalHeight / img.naturalWidth;   // 25% of page width
@@ -268,6 +227,7 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 stage.addEventListener('pointerdown', e => {
   const box = e.target.closest('.sig');
   if (!box) return;
+  if (e.target.classList.contains('x')) { box.remove(); return; }
   select(box);
   e.preventDefault();
   justDragged = true;
@@ -292,64 +252,15 @@ stage.addEventListener('pointerdown', e => {
   addEventListener('pointermove', move); addEventListener('pointerup', up);
 });
 
-/* ---------- layers panel ---------- */
+/* ---------- selection ---------- */
 const boxes = () => [...stage.querySelectorAll('.sig')];
 const selected = () => stage.querySelector('.sig.sel');
 
 function select(box) {
   boxes().forEach(b => b.classList.toggle('sel', b === box));
-  sync();
 }
 
-function sync() {
-  const all = boxes();
-  list.innerHTML = all.length ? '' : '<div class="empty">No signatures placed yet.</div>';
-  all.slice().reverse().forEach(box => {                     // topmost layer first, like Photoshop
-    const page = [...stage.querySelectorAll('.page')].indexOf(box.closest('.page')) + 1;
-    const row = document.createElement('div');
-    row.className = 'row' + (box.classList.contains('sel') ? ' sel' : '')
-                  + (box.style.visibility === 'hidden' ? ' hidden' : '');
-    row.innerHTML = `<img class="thumb" src="${box.querySelector('img').src}">
-      <span class="meta"><span class="nm">${box.dataset.name}</span><span class="pg">page ${page}</span></span>
-      <button title="Bring forward">▲</button><button title="Send back">▼</button>
-      <button title="Show / hide">${box.style.visibility === 'hidden' ? '🚫' : '👁'}</button>`;
-    const [up, down, eye] = row.querySelectorAll('button');
-    row.onclick = () => { select(box); box.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
-    up.onclick = e => { e.stopPropagation(); box.nextElementSibling?.after(box); sync(); };
-    down.onclick = e => { e.stopPropagation(); box.previousElementSibling?.before(box); sync(); };
-    eye.onclick = e => {
-      e.stopPropagation();
-      box.style.visibility = box.style.visibility === 'hidden' ? '' : 'hidden';
-      sync();
-    };
-    list.appendChild(row);
-  });
-  const box = selected();
-  props.classList.toggle('on', !!box);
-  $('#layersBtn').textContent = `Layers (${all.length})`;
-  if (box) {
-    $('#op').value = Math.round((box.style.opacity || 1) * 100);
-    $('#opVal').textContent = $('#op').value + '%';
-    $('#sz').value = Math.round(box.offsetWidth / 9);
-    $('#szVal').textContent = $('#sz').value + '%';
-  }
-}
-
-$('#op').oninput = e => {
-  const box = selected(); if (!box) return;
-  box.style.opacity = e.target.value / 100;
-  $('#opVal').textContent = e.target.value + '%';
-};
-$('#sz').oninput = e => {
-  const box = selected(); if (!box) return;
-  const ratio = box.offsetHeight / box.offsetWidth, w = e.target.value * 9;
-  box.style.width = w + 'px'; box.style.height = w * ratio + 'px';
-  $('#szVal').textContent = e.target.value + '%';
-};
-$('#del').onclick = () => { selected()?.remove(); sync(); };
-
-$('#layersBtn').onclick = () => $('#panel').classList.toggle('open');
-$('#panelHead').onclick = () => $('#panel').classList.remove('open');
+function sync() { /* kept for existing placement calls; no layer pane is shown */ }
 
 addEventListener('keydown', e => {                     // nudge / delete the selected layer
   const box = selected();
