@@ -605,7 +605,7 @@ const QR_CODE           = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkQAAAJ
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ===== Fixed values (same on every certificate) =====
-const CUSTOMER    = 'SAMEER ENTERPRISES';
+const CUSTOMER    = 'SAMEER ENTERPRISES PD';
 const STANDARD    = 'IS : 6745-1972/277-1972/IS513:1994';
 const GENERATED_BY= 'L09GEN ICAREMUM';
 const REQUESTED_BY= 'LATIF CHAUDHARY';
@@ -988,7 +988,7 @@ function headerHTML(data, pageIdx, total, web){
     <div class="rt">${srnoLine}<div>Page - ${pageIdx} out of ${total}</div></div>
   </div>
   <div class="doc-title">MATERIAL TEST CERTIFICATE</div>
-  <p class="certify">This is to certify that METAL as supplied to <b>M/s. ${cust}</b> against our invoice number : <b>${inv}</b> , dated : ${invd} are tested and confirm to the below specification under <b>${std}</b>.</p>`;
+  <p class="certify">This is to certify that Material as supplied to <b>M/s. ${cust}</b> against our invoice number : <b>${inv}</b> , dated : ${invd} are tested and confirm to the below specification under <b>${std}</b>.</p>`;
 }
 
 function tableHTML(p, web){
