@@ -1,958 +1,634 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Proforma Invoice</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      margin: 0;
-      padding: 0;
-    }
-    .container {
-      width: 90%;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-    }
-    input {
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      width: calc(100% - 22px);
-    }
-    .input-group {
-      margin-bottom: 20px;
-    }
-    #outputTable, #productReferenceTable {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-    }
-    #outputTable th, #outputTable td, #productReferenceTable th, #productReferenceTable td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-      word-wrap: break-word;
-      white-space: normal;
-    }
-    #outputTable th, #productReferenceTable th {
-      background-color: #f2f2f2;
-    }
-    .reference-container {
-      margin-top: 20px;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 5px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    }
-    .margin-positive {
-      color: green;
-    }
-    .margin-negative {
-      color: red;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proforma Invoice</title>
+<style>
+body{font-family:Arial,sans-serif;background-color:#f4f4f4;margin:0;padding:0}
+.container{width:90%;margin:0 auto;padding:20px}
+h1{text-align:center}
+input{padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc;width:calc(100% - 22px)}
+select{padding:10px;margin:10px 0;border-radius:5px;border:1px solid #ccc}
+button{padding:10px 15px;border:none;border-radius:5px;cursor:pointer;background:#333;color:white}
+.input-group{margin-bottom:20px}
+#outputTable,#productReferenceTable{width:100%;border-collapse:collapse;margin-bottom:20px}
+#outputTable th,#outputTable td,#productReferenceTable th,#productReferenceTable td{border:1px solid #ddd;padding:8px;text-align:left;word-wrap:break-word;white-space:normal}
+#outputTable th,#productReferenceTable th{background-color:#f2f2f2}
+.reference-container{margin-top:20px;padding:20px;background-color:#fff;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.1)}
+.margin-positive{color:green}
+.margin-negative{color:red}
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>Proforma Invoice</h1>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-      <h3 id="billNumberDisplay" style="margin: 0;">Bill Number: </h3>
-      <!--<button onclick="startNewBill()" style="padding: 5px 10px; cursor: pointer;">🆕 New Bill</button>-->
-    </div>
+<div class="container">
+<h1>Proforma Invoice</h1>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 id="billNumberDisplay" style="margin:0">Bill Number:</h3></div>
+<div class="input-group"><input type="text" id="partyInfo" placeholder="Party Information"></div>
+<div class="input-group"><select id="paymentInfo">
+<option value="">None</option>
+<option value="Name: Sameer Enterprises, Bank Name: HDFC Bank Ltd, Account Number: 09982000000501, IFSC Code: HDFC0000998, Branch: Vikhroli (W)">HDFC Bank</option>
+<option value="Name: SFL Enterprises, UPID: sflenterprises1@oksbi">SFL UPI</option>
+</select></div>
+<div class="input-group" style="display:flex;align-items:center;gap:10px"><label for="gstMode">GST Mode</label><input type="checkbox" id="gstMode" style="width:auto;margin:0"></div>
+<table id="outputTable">
+<thead><tr><th>Product Name</th><th>Quantity</th><th>Rate</th><th>Total</th><th>Margin</th></tr></thead>
+<tbody id="output"></tbody>
+</table>
+<div class="input-group">
+<input type="text" id="productInput" placeholder="Type product code (QPA format)" onkeydown="handleEnter(event)">
+<div id="suggestions" style="position:relative"><ul id="suggestionList" style="list-style:none;margin:0;padding:0;background:white;border:1px solid #ccc;max-height:200px;overflow-y:auto;position:absolute;width:100%;z-index:1000"></ul></div>
+<div id="productInfoPreview" style="font-weight:bold;color:green;margin-top:5px"></div>
+<br>
+<button onclick="generateImprovedPDF()">Generate PDF</button>
+<div id="savedBills" style="margin-top:20px"><h3>Saved Bills</h3><ul id="billList" style="list-style:none;padding:0"></ul></div>
+</div>
+</div>
 
-    
-    <div class="input-group">
-      <input type="text" id="partyInfo" placeholder="Party Information">
-    </div>
-    
-    <!-- Payment Info Dropdown -->
-    <div class="input-group">
-      <label for="paymentInfo"></label>
-      <select id="paymentInfo">
-        <option value="">None</option>
-        <option value="Name: Sameer Enterprises, Bank Name: HDFC Bank Ltd, Account Number: 09982000000501, IFSC Code: HDFC0000998, Branch: Vikhroli (W)">HDFC Bank </option>
-        <option value="Name: SFL Enterprises, UPID: sflenterprises1@oksbi">SFL UPI</option>
-      </select>
-    </div>
-    
-    <!-- GST Mode -->
-    <div class="input-group" style="display:flex; align-items:center; gap:10px;">
-      <label for="gstMode">GST Mode</label>
-      <input type="checkbox" id="gstMode" style="width:auto; margin:0;">
-    </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+<script>
+const products={
+"b":["Gypblock Board 6'x4'x12.5mm","nos",330,18,0,16],
+"gb":["Gyproc Board 6'x4'x12.5mm","nos",430,18,0,16],
+"hb648":["Hilux Board 6'x4x'8mm","nos",750,18,0,0],
+"hb8410":["Hilux Board 8'x4'x10mm","nos",1280,18,0,0],
+"hb8412":["Hilux Board 8'x4'x12mm","nos",1540,18,0,0],
+"gmr":["Gyproc MR Board 6'x4'x12.5mm","nos",870,18,0,0],
+"gfr":["Gyproc FR Board 6'x4'x12.5mm","nos",850,18,0,0],
+"e646":["Everest Board 6'x4'x6mm","nos",450,18,0,0],
+"e648":["Everest Board 6'x4'x8mm","nos",550,18,0,0],
+"e6412":["Everest Board 6'x4'x8mm","nos",850,18,0,0],
+"e8412":["Everest Board 8'x4'x12mm","nos",1720,18,0,0],
+"pops":["POP Sheet 2'x3'x10mm","nos",65,18,0,0],
 
-    <!-- Table Section -->
-    <table id="outputTable">
-      <thead>
-        <tr>
-          <th>Product Name</th>
-          <th>Quantity</th>
-          <th>Rate</th>
-          <th>Total</th>
-          <th>Margin</th>
-        </tr>
-      </thead>
-      <tbody id="output"></tbody>
-    </table>
+"pa":["GI Patti 8'","nos",70,18,0,0],
+"mpa":["Magnic Ceiling Section 2440mm","nos",105,18,0,0],
+"xpa":["Xpert Ceiling Section 2440mm","nos",130,18,0,.81],
+"xpa12":["Xpert Ceiling Section 3660mm","nos",0,18,0,1.2],
+"mgpa":["Megastil Ceiling Section 3660mm","nos",310,18,0,1.35],
+"gpa":["Gypserra Ceiling Section 3660mm","nos",430,18,0,0],
 
-    <!-- Input Section -->
-    <div class="input-group">
-      <input type="text" id="productInput" placeholder="Type product code (QPA format)" onkeydown="handleEnter(event)">
-      <div id="suggestions" style="position: relative;"><ul id="suggestionList" style="list-style: none; margin: 0; padding: 0; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto; position: absolute; width: 100%; z-index: 1000;"></ul></div>
-      <div id="productInfoPreview" style="font-weight: bold; color: green; margin-top: 5px;"></div>
-      <br></br>
-      <button onclick="generateImprovedPDF()">Generate PDF</button>
-      <div id="savedBills" style="margin-top:20px;">
-      <h3>Saved Bills</h3>
-      <ul id="billList" style="list-style:none;padding:0;"></ul>
-    </div>
-    </div>
-  </div>
+"bo":["GI Bottom 8'","nos",70,18,0,0],
+"mbo":["Magnic Intermediate 2440mm","nos",105,18,0,0],
+"xbo":["Xpert Intermediate 2440mm","nos",130,18,0,.86],
+"xbo12":["Xpert Intermediate 3660mm","nos",0,18,0,1.27],
+"mgbo":["Megastil Intermediate 3660mm","nos",310,18,0,1.46],
+"gbo":["Gypserra Intermediate 3660mm","nos",430,18,0,0],
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
-  <script>
-    const products = {
-      "b": ["Gypblock Board 6'x4'x12.5mm", "nos", 330, 18, 0],
-      "gb": ["Gyproc Board 6'x4'x12.5mm", "nos", 430, 18, 0],
-      "hb648": ["Hilux Board 6'x4x'8mm", "nos", 750, 18, 0],
-      "hb8410": ["Hilux Board 8'x4'x10mm", "nos", 1280, 18, 0],
-      "hb8412": ["Hilux Board 8'x4'x12mm", "nos", 1540, 18, 0],
-      "gmr": ["Gyproc MR Board 6'x4'x12.5mm", "nos", 870, 18, 0],
-      "gfr": ["Gyproc FR Board 6'x4'x12.5mm", "nos", 850, 18, 0],
-      "e646": ["Everest Board 6'x4'x6mm", "nos", 450, 18, 0],
-      "e648": ["Everest Board 6'x4'x8mm", "nos", 550, 18, 0],
-      "e6412": ["Everest Board 6'x4'x8mm", "nos", 850, 18, 0],
-      "e8412": ["Everest Board 8'x4'x12mm", "nos", 1720, 18, 0],
-      "pops": ["POP Sheet 2'x3'x10mm", "nos", 65, 18, 0],
-    
-      "pa": ["GI Patti 8'", "nos", 70, 18, 0],
-      "mpa": ["Magnic Ceiling Section 2440mm", "nos", 105, 18, 0],
-      "xpa": ["Xpert Ceiling Section 2440mm", "nos", 130, 18, 0],
-      "mgpa": ["Megastil Ceiling Section 3660mm", "nos", 310, 18, 0],
-      "gpa": ["Gypserra Ceiling Section 3660mm", "nos", 430, 18, 0],
-    
-      "bo": ["GI Bottom 8'", "nos", 70, 18, 0],
-      "mbo": ["Magnic Intermediate 2440mm", "nos", 105, 18, 0],
-      "xbo": ["Xpert Intermediate 2440mm", "nos", 130, 18, 0],
-      "mgbo": ["Megastil Intermediate 3660mm", "nos", 310, 18, 0],
-      "gbo": ["Gypserra Intermediate 3660mm", "nos", 430, 18, 0],
-    
-      "pe": ["GI Perimeter 8'", "nos", 45, 18, 0],
-      "mpe": ["Magnic Perimeter 2440mm", "nos", 60, 18, 0],
-      "xpe": ["Xpert Perimeter 2440mm", "nos", 95, 18, 0],
-      "mgpe": ["Megastil Perimeter 3660mm", "nos", 195, 18, 0],
-      "gpe": ["Gypserra Perimeter 3660mm", "nos", 280, 18, 0],
-    
-      "al": ["GI Al 8'", "nos", 25, 18, 0],
-      "mal": ["Magnic Ceiling Angle 2440mm", "nos", 40, 18, 0],
-      "xal": ["Xpert Ceiling Angle 2440mm", "nos", 50, 18, 0],
-      "mgal": ["Megastil Ceiling Angle 3660mm", "nos", 95, 18, 0],
-      "gal": ["Gypserra Ceiling Angle 3660mm", "nos", 150, 18, 0],
-    
-      "fl12": ["GI Floor Channel 12'", "nos", 130, 18, 0],
-      "fl10": ["GI Floor Channel 10'", "nos", 115, 18, 0],
-      "xfl": ["Xpert Floor Channel 12'", "nos", 260, 18, 0],
-    
-      "st12": ["GI Stud Channel 12'", "nos", 160, 18, 0],
-      "st10": ["GI Stud Channel 10'", "nos", 130, 18, 0],
-      "xst": ["Xpert Stud Channel 12'", "nos", 270, 18, 0],
-    
-      "gp": ["Gypsum Plaster", "bg", 200, 5, 160],
-      "jc": ["Gyproc Easi Fill 90", "bg", 550, 18, 0],
-      "xgp25": ["Gyproc Xpert Plaster 25KG", "bg", 300, 5, 0],
-      "xgp20": ["Gyproc Xpert Plaster 20KG", "bg", 240, 5, 0],
-      "e25": ["Gyproc Elite 100 - 25kg", "bg", 340, 5, 0],
-      "emr25": ["Gyproc Elite MR - 25kg", "bg", 380, 5, 0],
-      "rm10": ["Readymix 10kg", "bkt", 250, 18, 0],
-    
-      "ft": ["Fiber Tape", "roll", 100, 18, 51],
-      "gft": ["Gyproc Fiber Tape", "roll", 230, 18, 0],
-      "gpt": ["Gyproc Paper Tape", "roll", 230, 18, 0],
-    
-      "ds": ["Drywall Screw 25mm", "box", 200, 18, 106],
-      "ds1.5": ["Drywall Screw 35mm", "box", 200, 18, 110],
-      "gds": ["Gyproc Drywall Screw 25mm", "box", 600, 18, 0],
-      "gds1.5": ["Gyproc Drywall Screw 38mm", "box", 380, 18, 0],
-      "gds2": ["Gyproc Drywall Screw 50mm", "box", 550, 18, 0],
-      "mtm500": ["Metal to Metal Screw 8x13 (500/box)", "box", 300, 18, 170],
-      "mtm300": ["Metal to Metal Screw 8x13 (300/box)", "box", 190, 18, 0],
-      "gmtm": ["Gyporc Metal to Metal Screw 4.2x13", "box", 520, 18, 0],
-      "gbc": ["Gyproc Butterfly Clip", "nos", 14, 18, 0],
-      "grp": ["Gyproc Rawl Plug (100 nos/box)", "box", 1100, 18, 0],
-      "rp": ["Rawl Plug (100 nos/pkt)","pkt", 300, 18, 140],
-      "fsnr": ["Fasterner", "pkt", 200, 18, 140],
-    
-      "cc": ["Connecting Clip", "pkt", 180, 18, 118.5],
-      "gcc": ["Gyproc Connecting Clip", "pkt", 640, 18, 0],
-      "sc": ["Soffit Cleate", "nos", 200, 18, 0],
-      "gsc": ["Gyproc Soffit Cleate", "pkt", 270, 18, 0],
-      "gphs": ["Gyproc Panhead Screw", "pkt", 1250, 18, 0],
-    
-      "gsd": ["Gyproc Sadoline Section 8'", "nos", 160, 18, 0],
-      "gab": ["Gyproc Angle Bead 8'", "nos", 160, 18, 0],
-    
-      "gbd": ["Gyproc Bondit", "kg", 160, 18, 0],
-      "ggp": ["Gyproc Gyplaster", "kg", 120, 18, 0],
-      "dcbd": ["DC Bond", "kg", 100, 18, 0],
-    
-      "mt": ["Main Tee 3000x24mm", "nos", 95, 18, 72],
-      "mmt": ["Maxtra Main Tee", "nos", 0, 18, 0],
-    
-      "ct2": ["Cross Tee 600x24mm", "nos", 20, 18, 14],
-      "mct2": ["Maxtra Cross Tee 2ft", "nos", 28, 18, 0],
-    
-      "ct4": ["Cross Tee 1200x24mm", "nos", 40, 18, 28],
-      "mct4": ["Maxtra Cross Tee 4ft", "nos", 56, 18, 0],
-    
-      "wal": ["Wall Angle 3000x24mm", "nos", 80, 18, 60],
-      "mwal": ["Maxtra Wall Angle", "nos", 100, 18, 0],
-    
-      "td300": ["Trap Door 300x300", "nos", 1650, 18, 1059.32],
-      "td450": ["Trap Door 450x450", "nos", 2000, 18, 1271.19],
-      "td600": ["Trap Door 600x600", "nos", 2200, 18, 1440.68],
-    
-      "gw12": ["Glasswool 12x50", "nos", 3200, 18, 0],
-      "gw16": ["Glasswool 16x50", "nos", 3400, 18, 0],
-      "gw24": ["Glasswool 24x50", "nos", 4800, 18, 0],
-    
-      "gddt": ["Gyprex Dew Drop Tiles (10 nos/box)", "nos", 100, 18, 0],
-      "ggt": ["Gyprex Granular Tiles (10 nos/box)", "nos", 100, 18, 0],
-      "lpht": ["Laban Tiles (14 nos/box)", "nos", 125, 18, 0],
-      "et": ["Everest Tiles (10 nos/box)", "nos", 100, 18, 0],
-    
-      "t": ["Transport", "", 250, 18, 0],
-      "tkw": ["Transport (Kanjurmarg West)", "", 400, 18, 0],
-      "tke": ["Transport (Kanjurmarg East)", "", 300, 18, 0],
-      "tps": ["Transport (Park Side)", "", 300, 18, 0],
-      "tg": ["Transport (Ghatkopar)", "", 350, 18, 0],
-      "tpo": ["Transport (Powai Heeranandani)", "", 400, 18, 0],
-      
-      "l": ["Loading", "", 0, 18, 0],
-      "u": ["Unloading", "", 0, 18, 0],
-      "lu": ["Loading & Unloading", "", 0, 18, 0],
-      "d": ["Discount", "", 0, 0, 0],
-    
-      "cgst": ["CGST", "", 0, 0, 0],
-      "sgst": ["SGST", "", 0, 0, 0],
-      "igst": ["IGST", "", 0, 0, 0],
-      "roff": ["Round Off", "", 0, 0, 0],
-    };
+"pe":["GI Perimeter 8'","nos",45,18,0,0],
+"mpe":["Magnic Perimeter 2440mm","nos",60,18,0,0],
+"xpe":["Xpert Perimeter 2440mm","nos",95,18,0,.54],
+"xpe12":["Xpert Perimeter 3660mm","nos",0,18,0,.8],
+"mgpe":["Megastil Perimeter 3660mm","nos",195,18,0,.91],
+"gpe":["Gypserra Perimeter 3660mm","nos",280,18,0,0],
 
-    let customProducts = {};
-    let total = 0;
-    let history = [];
-    
-    // 👇 ADD THIS HERE
-    let billNumber = 0;
-    
-    function generateBillNumber() {
-      // Get last used bill number from localStorage
-      const lastBillNumber = parseInt(localStorage.getItem("lastBillNumber") || "0", 10);
-      const newBillNumber = lastBillNumber + 1;
-      localStorage.setItem("lastBillNumber", newBillNumber);
-      billNumber = newBillNumber;
-      document.getElementById("billNumberDisplay").textContent = `Bill Number: ${String(billNumber).padStart(4, '0')}`;
-    }
-    
-    function showNextBillNumber() {
-      const lastBillNumber = parseInt(localStorage.getItem("lastBillNumber") || "0", 10);
-      document.getElementById("billNumberDisplay").textContent = `Bill Number: ${String(lastBillNumber + 1).padStart(4, '0')}`;
-    }
+"al":["GI Al 8'","nos",25,18,0,0],
+"mal":["Magnic Ceiling Angle 2440mm","nos",40,18,0,0],
+"xal":["Xpert Ceiling Angle 2440mm","nos",50,18,0,.27],
+"xal12":["Xpert Ceiling Angle 3660mm","nos",0,18,0,0],
+"mgal":["Megastil Ceiling Angle 3660mm","nos",95,18,0,.44],
+"gal":["Gypserra Ceiling Angle 3660mm","nos",150,18,0,0],
 
-    function getActualCostPrice(productDetails) {
-      const costPrice = parseFloat(productDetails[4]) || 0;
-      const gstPercentage = parseFloat(productDetails[3]) || 0;
-    
-      const gstMode = document.getElementById("gstMode").checked;
-    
-      if (gstMode) {
-        // GST ON:
-        // Base cost price is treated as the actual cost price
-        return costPrice;
-      } else {
-        // GST OFF:
-        // Cost price + GST is treated as the actual cost price
-        return costPrice + (costPrice * gstPercentage / 100);
-      }
-    }
+"fl12":["GI Floor Channel 12'","nos",130,18,0,0],
+"fl10":["GI Floor Channel 10'","nos",115,18,0,0],
+"xfl":["Xpert Floor Channel 50x3660mm","nos",260,18,0,0],
 
-  function recalculateAllMargins() {
-    history.forEach(item => {
-      const productDetails = products[item.code] || customProducts[item.code];
-  
-      // Ignore GST/round-off rows
-      if (!productDetails || ["cgst", "sgst", "igst", "roff"].includes(item.code)) {
-        return;
-      }
-  
-      const costPrice = parseFloat(productDetails[4]) || 0;
-      const gstPercentage = parseFloat(productDetails[3]) || 0;
-  
-      if (costPrice > 0) {
-        const actualCostPrice = getActualCostPrice(productDetails);
-  
-        // Get selling price from the stored unit price
-        const sellingPrice = parseFloat(item.newpricePerUnit) || 0;
-  
-        const marginPerUnit = sellingPrice - actualCostPrice;
-  
-        item.margin = parseFloat(
-          (marginPerUnit * item.quantity).toFixed(2)
-        );
-  
-        item.marginPercentage = actualCostPrice > 0
-          ? parseFloat(
-              ((marginPerUnit / actualCostPrice) * 100).toFixed(2)
-            )
-          : 0;
-  
-        item.marginDisplay =
-          `₹${item.margin} (${item.marginPercentage}%)`;
-  
-        item.marginClass =
-          item.margin >= 0
-            ? "margin-positive"
-            : "margin-negative";
-      } else {
-        item.margin = 0;
-        item.marginPercentage = 0;
-        item.marginDisplay = "";
-        item.marginClass = "";
-      }
-    });
-  
-    renderTable();
-  }
-  
-  document.getElementById("gstMode").addEventListener("change", function () {
-    recalculateAllMargins();
-  });
+"st12":["GI Stud Channel 12'","nos",160,18,0,0],
+"st10":["GI Stud Channel 10'","nos",130,18,0,0],
+"xst":["Xpert Stud Channel 48x3660mm","nos",270,18,0,0],
 
-    function addProduct() {
-      const input = document.getElementById("productInput").value.trim().replace(/ /g, '*');
+"gp":["Gypsum Plaster","bg",200,5,160,20],
+"jc":["Gyproc Easi Fill 90","bg",550,18,0,0],
+"xgp25":["Gyproc Xpert Plaster 25KG","bg",300,5,0,25],
+"xgp20":["Gyproc Xpert Plaster 20KG","bg",240,5,0,20],
+"e25":["Gyproc Elite 100 - 25kg","bg",340,5,0,25],
+"emr25":["Gyproc Elite MR - 25kg","bg",380,5,0,25],
+"rm":["Readymix Jointing Compound","kg",225,18,0,1],
 
-      if (input === "c") {
-        clearAll();
-        return;
-      }
-      
-      if (input.startsWith('*')) {
-        const customProductName = input.slice(1);
-        if (customProductName) {
-          customProducts[customProductName] = [customProductName, "nos", 0, 0, 0];
-          alert(`Custom product "${customProductName}" added. Now enter quantity and rate in the format: quantity*${customProductName}*rate`);
-        }
-        clearInput();
-        return;
-      }
+"ft":["Fiber Tape","roll",100,18,51,0],
+"gft":["Gyproc Fiber Tape","roll",230,18,0,0],
+"gpt":["Gyproc Paper Tape","roll",230,18,0,0],
 
-      const [productCode, quantityStr, amountStr] = input.split("*");
-      const quantity = quantityStr ? parseFloat(parseFloat(quantityStr).toFixed(2)) : 1;
-        let amount = 0;
-        let isInclusiveGST = false;
-        
-        if (amountStr) {
-          if (amountStr.toLowerCase().endsWith("i")) {
-            isInclusiveGST = true;
-            amount = parseFloat(amountStr.slice(0, -1)); // remove 'i'
-          } else {
-            amount = parseFloat(amountStr);
-          }
-        
-          amount = parseFloat(amount.toFixed(2));
-        }
-      const productDetails = products[productCode] || customProducts[productCode];
+"ds":["Drywall Screw 25mm","box",200,18,106,0],
+"ds1.5":["Drywall Screw 35mm","box",200,18,110,0],
+"gds":["Gyproc Drywall Screw 25mm","box",600,18,0,0],
+"gds1.5":["Gyproc Drywall Screw 38mm","box",380,18,0,0],
+"gds2":["Gyproc Drywall Screw 50mm","box",550,18,0,0],
+"mtm500":["Metal to Metal Screw 8x13 (500/box)","box",300,18,170,0],
+"mtm300":["Metal to Metal Screw 8x13 (300/box)","box",190,18,0,0],
+"gmtm":["Gyporc Metal to Metal Screw 4.2x13","box",520,18,0,0],
 
-      if (!productDetails) {
-        alert("Invalid product code!");
-        clearInput();
-        return;
-      }
+"gbc":["Gyproc Butterfly Clip","nos",14,18,0,0],
+"grp":["Gyproc Rawl Plug (100 nos/box)","box",1100,18,0,0],
+"rp":["Rawl Plug (100 nos/pkt)","pkt",300,18,140,0],
+"fsnr":["Fasterner","pkt",200,18,140,0],
+"cc":["Connecting Clip","pkt",180,18,118.5,0],
+"gcc":["Gyproc Connecting Clip","pkt",640,18,0,0],
+"sc":["Soffit Cleate","nos",200,18,0,0],
+"gsc":["Gyproc Soffit Cleate","pkt",270,18,0,0],
+"gphs":["Gyproc Panhead Screw","pkt",1250,18,0,0],
 
-      if (quantity === 0) {
-        removeProduct(productCode);
-        clearInput();
-        return;
-      }
+"gsd":["Gyproc Sadoline Section 8'","nos",160,18,0,0],
+"gab":["Gyproc Angle Bead 8'","nos",160,18,0,0],
 
-      const productName = productDetails[0];
-        let pricePerUnit;
-        
-        if (amount === 0) {
-          pricePerUnit = productDetails[2];
-        } else {
-          if (isInclusiveGST) {
-            const gst = productDetails[3];
-            pricePerUnit = parseFloat((amount / (1 + gst / 100)).toFixed(2));
-          } else {
-            pricePerUnit = amount;
-          }
-        }
-      const unit = productDetails[1];
-      const costPrice = productDetails[4];
-      const gstPercentage = productDetails[3];
-      
-      // Calculate actual cost price with GST
-      // Calculate actual cost price according to GST Mode
-      const actualCostPrice = getActualCostPrice(productDetails); 
-      
-      const newpricePerUnit = quantity == 1 && unit == "" ? "" : `${pricePerUnit}`;
-      const displayQuantity = quantity == 1 && unit == "" ? "" : `${quantity}`;
-      const finalAmount = parseFloat((quantity * pricePerUnit).toFixed(2));
-      
-      // Calculate margin
-      let margin = 0;
-      let marginPercentage = 0;
-      let marginDisplay = "";
-      
-  if (costPrice > 0) {
-    const sellingPrice = amount === 0 ? productDetails[2] : pricePerUnit;
-  
-    const actualCostPrice = getActualCostPrice(productDetails);
-  
-    const marginPerUnit = sellingPrice - actualCostPrice;
-  
-    margin = parseFloat(
-      (marginPerUnit * quantity).toFixed(2)
-    );
-  
-    marginPercentage = actualCostPrice > 0
-      ? parseFloat(
-          ((marginPerUnit / actualCostPrice) * 100).toFixed(2)
-        )
-      : 0;
-  
-    marginDisplay = `₹${margin} (${marginPercentage}%)`;
-  }
-      
-      let calculatedAmount = finalAmount;
+"gbd":["Gyproc Bondit","kg",160,18,0,1],
+"ggp":["Gyproc Gyplaster","kg",120,18,0,1],
+"dcbd":["DC Bond","kg",100,18,0,1],
 
-      // Handle GST items
-      if (productCode === "cgst" || productCode === "sgst") {
-        let gstTotal = 0;
-        history.forEach(item => {
-          const prod = products[item.code];
-          if (prod && prod[3]) {
-            gstTotal += (item.finalAmount * prod[3]) / 100;
-          }
-        });
-        calculatedAmount = parseFloat((gstTotal / 2).toFixed(2));
-      } else if (productCode === "igst") {
-        let gstTotal = 0;
-        history.forEach(item => {
-          const prod = products[item.code];
-          if (prod && prod[3]) {
-            gstTotal += (item.finalAmount * prod[3]) / 100;
-          }
-        });
-        calculatedAmount = parseFloat(gstTotal.toFixed(2));
-      } else if (productCode === "roff") {
-        let tempTotal = total;
-        const roffValue = Math.round(tempTotal) - tempTotal;
-        calculatedAmount = Math.round(roffValue * 100) / 100;
-      }
+"mt":["Main Tee 3000x24mm","nos",95,18,72,0],
+"mmt":["Maxtra Main Tee","nos",0,18,0,0],
+"ct2":["Cross Tee 600x24mm","nos",20,18,14,0],
+"mct2":["Maxtra Cross Tee 2ft","nos",28,18,0,0],
+"ct4":["Cross Tee 1200x24mm","nos",40,18,28,0],
+"mct4":["Maxtra Cross Tee 4ft","nos",56,18,0,0],
+"wal":["Wall Angle 3000x24mm","nos",80,18,60,0],
+"mwal":["Maxtra Wall Angle","nos",100,18,0,0],
 
-      const existingIndex = history.findIndex(item => item.code === productCode);
-      if (existingIndex !== -1) {
-        const existingItem = history[existingIndex];
-        total -= existingItem.finalAmount;
-        history[existingIndex] = { 
-          code: productCode, 
-          name: productName, 
-          unit, 
-          quantity, 
-          displayQuantity, 
-          newpricePerUnit, 
-          finalAmount: calculatedAmount,
-          margin: margin,
-          marginDisplay: marginDisplay,
-          marginClass: margin >= 0 ? "margin-positive" : "margin-negative"
-        };
-      } else {
-        history.push({ 
-          code: productCode, 
-          name: productName, 
-          unit, 
-          quantity, 
-          displayQuantity, 
-          newpricePerUnit, 
-          finalAmount: calculatedAmount,
-          margin: margin,
-          marginDisplay: marginDisplay,
-          marginClass: margin >= 0 ? "margin-positive" : "margin-negative"
-        });
-      }
+"td300":["Trap Door 300x300","nos",1650,18,1059.32,0],
+"td450":["Trap Door 450x450","nos",2000,18,1271.19,0],
+"td600":["Trap Door 600x600","nos",2200,18,1440.68,0],
 
-      total = parseFloat((total + calculatedAmount).toFixed(2));
+"gw12":["Glasswool 12x50","nos",3200,18,0,0],
+"gw16":["Glasswool 16x50","nos",3400,18,0,0],
+"gw24":["Glasswool 24x50","nos",4800,18,0,0],
 
-      renderTable();
-      clearInput();
-      
-      if (window.innerWidth <= 768) {
-        document.getElementById("productInput").scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
+"gddt":["Gyprex Dew Drop Tiles (10 nos/box)","nos",100,18,0,2],
+"ggt":["Gyprex Granular Tiles (10 nos/box)","nos",100,18,0,2],
+"lpht":["Laban Tiles (14 nos/box)","nos",125,18,0,0],
+"et":["Everest Tiles (10 nos/box)","nos",100,18,0,0],
 
-    function removeProduct(productCode) {
-      const productIndex = history.findIndex(item => item.code === productCode);
-      if (productIndex === -1) {
-        alert("Product not found!");
-        return;
-      }
- 
-      const removedItem = history.splice(productIndex, 1)[0];
-      total -= removedItem.finalAmount;
+"t":["Transport","",250,18,0,0],
+"tkw":["Transport (Kanjurmarg West)","",400,18,0,0],
+"tke":["Transport (Kanjurmarg East)","",300,18,0,0],
+"tps":["Transport (Park Side)","",300,18,0,0],
+"tg":["Transport (Ghatkopar)","",350,18,0,0],
+"tpo":["Transport (Powai Heeranandani)","",400,18,0,0],
+"l":["Loading","",0,18,0,0],
+"u":["Unloading","",0,18,0,0],
+"lu":["Loading & Unloading","",0,18,0,0],
+"d":["Discount","",0,0,0,0],
 
-      renderTable();
-    }
-    
-    // function startNewBill() {
-    //   // Clear current bill data
-    //   history = [];
-    //   total = 0;
-    
-    //   // Clear input fields
-    //   document.getElementById("productInput").value = "";
-    //   document.getElementById("partyInfo").value = "";
-    //   document.getElementById("paymentInfo").selectedIndex = 0;
-    
-    //   // Clear the output table
-    //   document.getElementById("output").innerHTML = "";
-      
-    //   showNextBillNumber();
-    
-    //   // Optionally scroll to top
-    //   window.scrollTo({ top: 0, behavior: "smooth" });
-    
-    //   alert("New bill started!");
-    // }
-    
+"cgst":["CGST","",0,0,0,0],
+"sgst":["SGST","",0,0,0,0],
+"igst":["IGST","",0,0,0,0],
+"roff":["Round Off","",0,0,0,0]
+};
 
-    function renderTable() {
-      const outputTableBody = document.getElementById("output");
-      outputTableBody.innerHTML = "";
-    
-      let calculatedTotal = 0;
-      let gstTotal = 0;
-      let totalMargin = 0;
-    
-      // First pass to calculate item total and GST
-      history.forEach(item => {
-        if (!["cgst", "sgst", "igst", "roff"].includes(item.code)) {
-          calculatedTotal += item.finalAmount;
-    
-          const productInfo = products[item.code];
-          if (productInfo && productInfo[3]) {
-            gstTotal += (item.finalAmount * productInfo[3]) / 100;
-          }
-          
-          // Add to total margin if cost price is available
-          if (productInfo && productInfo[4] > 0) {
-            totalMargin += item.margin;
-          }
-        }
-      });
-    
-      // Second pass: reinsert gst/roff with updated values if already used
-      let newHistory = [];
-    
-      history.forEach(item => {
-        if (["cgst", "sgst"].includes(item.code)) {
-          const gst = parseFloat((gstTotal / 2).toFixed(2));
-          item.finalAmount = gst;
-          newHistory.push(item);
-        } else if (item.code === "igst") {
-          const igst = parseFloat(gstTotal.toFixed(2));
-          item.finalAmount = igst;
-          newHistory.push(item);
-        } else if (item.code === "roff") {
-          const tempTotal = calculatedTotal + gstTotal;
-          const roffValue = Math.round(tempTotal) - tempTotal;
-          item.finalAmount = Math.round(roffValue * 100) / 100;
-          newHistory.push(item);
-        } else {
-          newHistory.push(item);
-        }
-      });
-    
-      history = newHistory;
-    
-      // Now render rows
-      let finalTotal = 0;
-    
-      history.forEach(item => {
-        outputTableBody.insertAdjacentHTML("beforeend", `
-          <tr>
-            <td>${item.name}</td>
-            <td>${item.displayQuantity} ${item.unit}</td>
-            <td>${item.newpricePerUnit}</td>
-            <td>${item.finalAmount}</td>
-            <td class="${item.marginClass}">${item.marginDisplay || ""}</td>
-          </tr>
-        `);
-    
-        finalTotal += item.finalAmount;
-      });
-    
-      // Calculate total margin percentage
-      const totalMarginPercentage = totalMargin > 0 ? parseFloat((totalMargin / (finalTotal - totalMargin) * 100).toFixed(2)) : 0;
-      
-      // Final total row
-      outputTableBody.insertAdjacentHTML("beforeend", `
-        <tr>
-          <td colspan="3" style="text-align: right; font-weight: bold;">Total</td>
-          <td style="font-weight: bold;">₹${finalTotal.toFixed(2)}</td>
-          <td class="${totalMargin >= 0 ? 'margin-positive' : 'margin-negative'}" style="font-weight: bold;">
-            ₹${totalMargin.toFixed(2)} (${totalMarginPercentage}%)
-          </td>
-        </tr>
-      `);
-    
-      total = parseFloat(finalTotal.toFixed(2));
-    }
+let customProducts={},total=0,history=[],billNumber=0;
 
-    function clearAll() {
-      total = 0;
-      history = [];
-      document.getElementById("output").innerHTML = "";
-    }
+function generateBillNumber(){
+const lastBillNumber=parseInt(localStorage.getItem("lastBillNumber")||"0",10);
+const newBillNumber=lastBillNumber+1;
+localStorage.setItem("lastBillNumber",newBillNumber);
+billNumber=newBillNumber;
+document.getElementById("billNumberDisplay").textContent=`Bill Number: ${String(billNumber).padStart(4,"0")}`;
+}
 
-    function clearInput() {
-      const input = document.getElementById("productInput");
-      input.value = "";
-      input.focus();
-    }
+function showNextBillNumber(){
+const lastBillNumber=parseInt(localStorage.getItem("lastBillNumber")||"0",10);
+document.getElementById("billNumberDisplay").textContent=`Bill Number: ${String(lastBillNumber+1).padStart(4,"0")}`;
+}
 
-    async function generateImprovedPDF() {
-      // ✅ Generate a new bill number when PDF is created
-      generateBillNumber();
-    
-      const { jsPDF } = window.jspdf;
-      const party = document.getElementById("partyInfo").value.trim() || "";
-      const paymentInfo = document.getElementById("paymentInfo").value;
-    
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-    
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const formattedTime = `${hours}:${minutes}`;
-      const billNoText = `${String(billNumber).padStart(4, '0')}`;
-    
-      // ✅ Company Info Header
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(0, 102, 153);
-      doc.text("Sameer Enterprises", 105, 10, { align: "center" });
-    
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.setTextColor(60);
-      doc.text("Opp HP Pump & HDFC Bank, LBS Road, Vikhroli (W), Mumbai - 79", 105, 16, { align: "center" });
-      doc.text("Mail: salarindiacorp@gmail.com", 105, 21, { align: "center" });
-      // doc.text("Phone: 7045692083", 105, 26, { align: "center" });
-    
-      // ✅ Header
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(22);
-      doc.setTextColor(40, 40, 140);
-      doc.text("Proforma Invoice", 105, 38, { align: "center" });
-    
-      // ✅ Metadata (Bill No, Date, Time, Info)
-      doc.setFontSize(12);
-      doc.setTextColor(0);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Bill No: ${billNoText}`, 15, 33);
-      doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 150, 33);
-      doc.text(`Time: ${formattedTime}`, 150, 38);
-      doc.text(`Customer Info:`, 15, 45);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${party}`, 48, 45);
-    
-      // ✅ Table Header
-      let y = 50;
-      doc.setFillColor(230, 230, 250);
-      doc.rect(10, y, 180, 10, 'F');
-      doc.setFontSize(12);
-      doc.setTextColor(0);
-      doc.setFont("helvetica", "bold");
-      doc.text("Product", 15, y + 7);
-      doc.text("Qty", 100, y + 7);
-      doc.text("Rate", 135, y + 7);
-      doc.text("Total", 170, y + 7);
-    
-      // ✅ Table Body
-      y += 16;
-      const rowHeight = 10;
-      doc.setFont("helvetica", "normal");
-    
-      history.forEach((item, index) => {
-        if (index % 2 === 1) {
-          doc.setFillColor(245, 245, 245);
-          doc.rect(10, y - 6, 180, rowHeight, 'F');
-        }
-        doc.setTextColor(0);
-        doc.text(String(item.name), 15, y);
-        doc.text(String(item.displayQuantity + " " + item.unit), 100, y);
-        doc.text(String(item.newpricePerUnit), 135, y);
-        doc.text(String(item.finalAmount), 170, y);
-        y += rowHeight;
-      });
-    
-      y -= rowHeight / 2;
-    
-      // ✅ Total Section
-      doc.setDrawColor(150, 150, 150);
-      doc.line(10, y, 190, y);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.text("Total", 135, y + 8);
-      doc.text(`${total}`, 170, y + 8);
-    
-      // ✅ Footer with Payment Info + QR
-      y += 20;
-      doc.setFontSize(11);
-      doc.setTextColor(80);
-    
-      const formattedInfo = paymentInfo.replace(/, /g, "\n");
-    
-      if (paymentInfo.includes("sflenterprises1@oksbi")) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(12);
-        doc.text(formattedInfo.split("\n"), 135, y);
-        const qr = new QRious({
-          value: `upi://pay?pa=sflenterprises1@oksbi&pn=SFL%20Enterprises&am=${total}&cu=INR`,
-          size: 80,
-        });
-        const qrDataURL = qr.toDataURL();
-        y += 8;
-        doc.addImage(qrDataURL, "PNG", 150, y, 30, 30);
-      } else if (paymentInfo.includes("Sameer Enterprises")) {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(12);
-        doc.text(formattedInfo.split("\n"), 135, y);
-        const qr = new QRious({
-          value: `upi://pay?pa=salarindiacorp@okhdfcbank&pn=Latif%20Chaudhary&am=${total}&cu=INR`,
-          size: 80,
-        });
-        const qrDataURL = qr.toDataURL();
-        y += 24;
-        doc.addImage(qrDataURL, "PNG", 150, y, 30, 30);
-      } else {
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(12);
-        doc.text(formattedInfo.split("\n"), 135, y);
-      }
-    
-      // ✅ Save PDF with Bill Number
-      doc.save(`${billNoText}.pdf`);
+function getActualCostPrice(productDetails){
+const costPrice=parseFloat(productDetails[4])||0,gstPercentage=parseFloat(productDetails[3])||0;
+return document.getElementById("gstMode").checked?costPrice:costPrice+(costPrice*gstPercentage/100);
+}
 
-    
-      // ✅ Save bill to localStorage
-      if (!party && history.length === 0) {
-        alert("Cannot save empty bill!");
-        return;
-      }
-    
-      const billData = {
-        id: Date.now(),
-        billNumber: billNumber,
-        party: party,
-        items: history,
-        total: total
-      };
-    
-      let savedBills = JSON.parse(localStorage.getItem("savedBills")) || [];
-      savedBills.unshift(billData);
-    
-      if (savedBills.length > 100) {
-        savedBills = savedBills.slice(0, 100);
-      }
-    
-      try {
-        localStorage.setItem("savedBills", JSON.stringify(savedBills));
-      } catch (e) {
-        alert("Storage is full! Please delete some old bills.");
-      }
-    
-      // ✅ Refresh saved bills list immediately
-      renderSavedBills();
-      showNextBillNumber();
-    }
+function recalculateAllMargins(){
+history.forEach(item=>{
+const productDetails=products[item.code]||customProducts[item.code];
+if(!productDetails||["cgst","sgst","igst","roff"].includes(item.code))return;
+const costPrice=parseFloat(productDetails[4])||0;
+if(costPrice>0){
+const actualCostPrice=getActualCostPrice(productDetails),sellingPrice=parseFloat(item.newpricePerUnit)||0,marginPerUnit=sellingPrice-actualCostPrice;
+item.margin=parseFloat((marginPerUnit*item.quantity).toFixed(2));
+item.marginPercentage=actualCostPrice>0?parseFloat(((marginPerUnit/actualCostPrice)*100).toFixed(2)):0;
+item.marginDisplay=`₹${item.margin} (${item.marginPercentage}%)`;
+item.marginClass=item.margin>=0?"margin-positive":"margin-negative";
+}else{
+item.margin=0;item.marginPercentage=0;item.marginDisplay="";item.marginClass="";
+}});
+renderTable();
+}
 
-    
-    function renderSavedBills() {
-      const billList = document.getElementById("billList");
-      billList.innerHTML = "";
-    
-      let savedBills = JSON.parse(localStorage.getItem("savedBills")) || [];
-    
-      savedBills.forEach(bill => {
-        const li = document.createElement("li");
-        li.style.display = "flex";
-        li.style.justifyContent = "space-between";
-        li.style.alignItems = "center";
-        li.style.padding = "5px 0";
-        li.style.borderBottom = "1px solid #ccc";
-    
-        // Bill name
-        const billText = document.createElement("span");
-    
-        // Format date and time from bill.id (timestamp)
-        const billDate = new Date(bill.id);
-        const dateStr = billDate.toLocaleDateString("en-GB"); // dd/mm/yyyy
-        const timeStr = billDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    
-        // 👇 Add bill number here (permanent)
-        billText.textContent = `${String(bill.billNumber).padStart(4, '0')}_${dateStr}_${timeStr}_${bill.party || "Unnamed"}_${bill.total.toFixed(2)}`;
-            
-        billText.style.cursor = "pointer";
-        billText.addEventListener("click", () => {
-          loadBill(bill.id);
-        });
-    
-        // Delete button
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "❌";
-        deleteBtn.style.marginLeft = "10px";
-        deleteBtn.style.cursor = "pointer";
-        deleteBtn.style.border = "none";
-        deleteBtn.style.background = "transparent";
-        deleteBtn.style.color = "red";
-        deleteBtn.style.fontSize = "16px";
-    
-        deleteBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          deleteBill(bill.id);
-        });
-    
-        li.appendChild(billText);
-        li.appendChild(deleteBtn);
-    
-        billList.appendChild(li);
-      });
-    }
+document.getElementById("gstMode").addEventListener("change",recalculateAllMargins);
 
-    
-    function loadBill(billId) {
-      let savedBills = JSON.parse(localStorage.getItem("savedBills")) || [];
-      const bill = savedBills.find(b => b.id === billId);
-    
-      if (!bill) {
-        alert("Bill not found!");
-        return;
-      }
-    
-      document.getElementById("partyInfo").value = bill.party;
-      history = bill.items;
-      total = bill.total;
-    
-      renderTable();
-    }
-    
-    function deleteBill(billId) {
-      let savedBills = JSON.parse(localStorage.getItem("savedBills")) || [];
-      savedBills = savedBills.filter(b => b.id !== billId);
-    
-      localStorage.setItem("savedBills", JSON.stringify(savedBills));
-      renderSavedBills();
-    }
+function addProduct(){
+const input=document.getElementById("productInput").value.trim().replace(/ /g,"*");
+if(input==="c"){clearAll();return;}
+if(input.startsWith("*")){
+const customProductName=input.slice(1);
+if(customProductName){
+customProducts[customProductName]=[customProductName,"nos",0,0,0,0];
+alert(`Custom product "${customProductName}" added. Now enter quantity and rate in the format: quantity*${customProductName}*rate`);
+}
+clearInput();return;
+}
 
-    function handleEnter(event) {
-      if (event.key === "Enter") {
-        addProduct();
-      }
-    }
-    
-    document.getElementById("productInput").addEventListener("input", showProductInfo);
+const [productCode,quantityStr,amountStr]=input.split("*");
+const quantity=quantityStr?parseFloat(parseFloat(quantityStr).toFixed(2)):1;
+let amount=0,isInclusiveGST=false;
 
-    function showProductInfo() {
-      const input = document.getElementById("productInput").value.trim();
-      const preview = document.getElementById("productInfoPreview");
-    
-      if (!input.includes(" ")) {
-        preview.textContent = "";
-        return;
-      }
-    
-      const parts = input.split(" ");
-      const productCode = parts.length === 2 ? parts[1] : (parts.length === 3 ? parts[1] : "");
-    
-      if (!productCode) {
-        preview.textContent = "";
-        return;
-      }
-    
-      const product = products[productCode] || customProducts[productCode];
-    }
+if(amountStr){
+if(amountStr.toLowerCase().endsWith("i")){
+isInclusiveGST=true;amount=parseFloat(amountStr.slice(0,-1));
+}else amount=parseFloat(amountStr);
+if(!isNaN(amount))amount=parseFloat(amount.toFixed(2));else amount=0;
+}
 
-    const inputField = document.getElementById("productInput");
-    const suggestionList = document.getElementById("suggestionList");
-    
-    inputField.addEventListener("input", () => {
-      const query = inputField.value.trim().toLowerCase();
-      suggestionList.innerHTML = "";
-    
-      if (!query) return;
-    
-      let suggestions;
-    
-      if (query.startsWith("/")) {
-        // Search by product name (excluding the '/')
-        const nameQuery = query.slice(1);
-        suggestions = Object.entries(products).filter(([code, [name]]) =>
-          name.toLowerCase().includes(nameQuery)
-        );
-      } else {
-        // Search by product code
-        suggestions = Object.entries(products).filter(([code]) =>
-          code.toLowerCase().includes(query)
-        );
-      }
+const productDetails=products[productCode]||customProducts[productCode];
+if(!productDetails){alert("Invalid product code!");clearInput();return;}
+if(quantity===0){removeProduct(productCode);clearInput();return;}
 
-      suggestions.slice(0, 10).forEach(([code, [name, unit, price]]) => {
-        const item = document.createElement("li");
-        item.textContent = `${code} - ${name} (₹${price})`;
-        item.style.padding = "5px 10px";
-        item.style.cursor = "pointer";
-    
-        item.addEventListener("click", () => {
-          inputField.value = `${code} `;
-          suggestionList.innerHTML = "";
-          inputField.focus();
-          showProductInfo();
-        });
-    
-        suggestionList.appendChild(item);
-      });
-    });
+const productName=productDetails[0];
+let pricePerUnit;
 
-    // Hide suggestions when clicking outside
-    document.addEventListener("click", function (e) {
-      if (!document.getElementById("suggestions").contains(e.target)) {
-        suggestionList.innerHTML = "";
-      }
-    });
-    
-    // 👇 Restore saved bills on page load
-    window.addEventListener("DOMContentLoaded", () => {
-      renderSavedBills();
-        showNextBillNumber();
-    });
+if(amount===0)pricePerUnit=productDetails[2];
+else if(isInclusiveGST){
+const gst=productDetails[3];
+pricePerUnit=parseFloat((amount/(1+gst/100)).toFixed(2));
+}else pricePerUnit=amount;
 
-  </script>
+const unit=productDetails[1],costPrice=productDetails[4],gstPercentage=productDetails[3];
+const weightPerUnit=parseFloat(productDetails[5])||0;
+const totalWeight=parseFloat((quantity*weightPerUnit).toFixed(2));
+
+let displayQuantity=quantity==1&&unit===""?"":`${quantity} ${unit}`;
+if(weightPerUnit>0&&displayQuantity!=="")displayQuantity+=` (${totalWeight} kg)`;
+
+const newpricePerUnit=quantity==1&&unit===""?"":`${pricePerUnit}`;
+const finalAmount=parseFloat((quantity*pricePerUnit).toFixed(2));
+
+let margin=0,marginPercentage=0,marginDisplay="";
+if(costPrice>0){
+const sellingPrice=amount===0?productDetails[2]:pricePerUnit;
+const actualCostPrice=getActualCostPrice(productDetails);
+const marginPerUnit=sellingPrice-actualCostPrice;
+margin=parseFloat((marginPerUnit*quantity).toFixed(2));
+marginPercentage=actualCostPrice>0?parseFloat(((marginPerUnit/actualCostPrice)*100).toFixed(2)):0;
+marginDisplay=`₹${margin} (${marginPercentage}%)`;
+}
+
+let calculatedAmount=finalAmount;
+
+if(productCode==="cgst"||productCode==="sgst"){
+let gstTotal=0;
+history.forEach(item=>{
+const prod=products[item.code];
+if(prod&&prod[3])gstTotal+=(item.finalAmount*prod[3])/100;
+});
+calculatedAmount=parseFloat((gstTotal/2).toFixed(2));
+}else if(productCode==="igst"){
+let gstTotal=0;
+history.forEach(item=>{
+const prod=products[item.code];
+if(prod&&prod[3])gstTotal+=(item.finalAmount*prod[3])/100;
+});
+calculatedAmount=parseFloat(gstTotal.toFixed(2));
+}else if(productCode==="roff"){
+const tempTotal=total,roffValue=Math.round(tempTotal)-tempTotal;
+calculatedAmount=Math.round(roffValue*100)/100;
+}
+
+const itemData={
+code:productCode,name:productName,unit,quantity,displayQuantity,newpricePerUnit,
+weightPerUnit,totalWeight,finalAmount:calculatedAmount,margin,marginPercentage,marginDisplay,
+marginClass:margin>=0?"margin-positive":"margin-negative"
+};
+
+const existingIndex=history.findIndex(item=>item.code===productCode);
+if(existingIndex!==-1){
+total-=history[existingIndex].finalAmount;
+history[existingIndex]=itemData;
+}else history.push(itemData);
+
+total=parseFloat((total+calculatedAmount).toFixed(2));
+renderTable();clearInput();
+
+if(window.innerWidth<=768)document.getElementById("productInput").scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function removeProduct(productCode){
+const productIndex=history.findIndex(item=>item.code===productCode);
+if(productIndex===-1){alert("Product not found!");return;}
+const removedItem=history.splice(productIndex,1)[0];
+total-=removedItem.finalAmount;
+renderTable();
+}
+
+function renderTable(){
+const outputTableBody=document.getElementById("output");
+outputTableBody.innerHTML="";
+let calculatedTotal=0,gstTotal=0,totalMargin=0,totalWeight=0;
+
+history.forEach(item=>{
+if(!["cgst","sgst","igst","roff"].includes(item.code)){
+calculatedTotal+=item.finalAmount;
+totalWeight+=parseFloat(item.totalWeight)||0;
+const productInfo=products[item.code];
+if(productInfo&&productInfo[3])gstTotal+=(item.finalAmount*productInfo[3])/100;
+if(productInfo&&productInfo[4]>0)totalMargin+=item.margin;
+}
+});
+
+totalWeight=parseFloat(totalWeight.toFixed(2));
+let newHistory=[];
+
+history.forEach(item=>{
+if(item.code==="cgst"||item.code==="sgst"){
+item.finalAmount=parseFloat((gstTotal/2).toFixed(2));newHistory.push(item);
+}else if(item.code==="igst"){
+item.finalAmount=parseFloat(gstTotal.toFixed(2));newHistory.push(item);
+}else if(item.code==="roff"){
+const tempTotal=calculatedTotal+gstTotal,roffValue=Math.round(tempTotal)-tempTotal;
+item.finalAmount=Math.round(roffValue*100)/100;newHistory.push(item);
+}else newHistory.push(item);
+});
+
+history=newHistory;
+let finalTotal=0;
+
+history.forEach(item=>{
+outputTableBody.insertAdjacentHTML("beforeend",`<tr><td>${item.name}</td><td>${item.displayQuantity}</td><td>${item.newpricePerUnit}</td><td>${item.finalAmount.toFixed(2)}</td><td class="${item.marginClass}">${item.marginDisplay||""}</td></tr>`);
+finalTotal+=item.finalAmount;
+});
+
+const totalMarginPercentage=totalMargin>0?parseFloat((totalMargin/(finalTotal-totalMargin)*100).toFixed(2)):0;
+
+outputTableBody.insertAdjacentHTML("beforeend",`<tr><td colspan="3" style="text-align:right;font-weight:bold">Total${totalWeight>0?` (${totalWeight} kg)`:""}</td><td style="font-weight:bold">₹${finalTotal.toFixed(2)}</td><td class="${totalMargin>=0?"margin-positive":"margin-negative"}" style="font-weight:bold">₹${totalMargin.toFixed(2)} (${totalMarginPercentage}%)</td></tr>`);
+
+total=parseFloat(finalTotal.toFixed(2));
+}
+
+function clearAll(){
+total=0;history=[];document.getElementById("output").innerHTML="";
+}
+
+function clearInput(){
+const input=document.getElementById("productInput");
+input.value="";input.focus();
+}
+
+async function generateImprovedPDF(){
+generateBillNumber();
+const {jsPDF}=window.jspdf;
+const party=document.getElementById("partyInfo").value.trim()||"";
+const paymentInfo=document.getElementById("paymentInfo").value;
+
+const doc=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});
+const now=new Date();
+const hours=String(now.getHours()).padStart(2,"0"),minutes=String(now.getMinutes()).padStart(2,"0");
+const formattedTime=`${hours}:${minutes}`,billNoText=String(billNumber).padStart(4,"0");
+
+let pdfTotalWeight=0;
+history.forEach(item=>{
+if(!["cgst","sgst","igst","roff"].includes(item.code))pdfTotalWeight+=parseFloat(item.totalWeight)||0;
+});
+pdfTotalWeight=parseFloat(pdfTotalWeight.toFixed(2));
+
+doc.setFont("helvetica","bold");
+doc.setFontSize(16);
+doc.setTextColor(0,102,153);
+doc.text("Sameer Enterprises",105,10,{align:"center"});
+doc.setFont("helvetica","normal");
+doc.setFontSize(11);
+doc.setTextColor(60);
+doc.text("Opp HP Pump & HDFC Bank, LBS Road, Vikhroli (W), Mumbai - 79",105,16,{align:"center"});
+doc.text("Mail: salarindiacorp@gmail.com",105,21,{align:"center"});
+
+doc.setFont("helvetica","bold");
+doc.setFontSize(22);
+doc.setTextColor(40,40,140);
+doc.text("Proforma Invoice",105,38,{align:"center"});
+
+doc.setFontSize(12);
+doc.setTextColor(0);
+doc.setFont("helvetica","normal");
+doc.text(`Bill No: ${billNoText}`,15,33);
+doc.text(`Date: ${new Date().toLocaleDateString("en-GB")}`,150,33);
+doc.text(`Time: ${formattedTime}`,150,38);
+doc.text("Customer Info:",15,45);
+doc.text(`${party}`,48,45);
+
+let y=50;
+doc.setFillColor(230,230,250);
+doc.rect(10,y,180,10,"F");
+doc.setFontSize(12);
+doc.setTextColor(0);
+doc.setFont("helvetica","bold");
+doc.text("Product",15,y+7);
+doc.text("Qty",100,y+7);
+doc.text("Rate",135,y+7);
+doc.text("Total",170,y+7);
+
+y+=16;
+const rowHeight=10;
+doc.setFont("helvetica","normal");
+
+history.forEach((item,index)=>{
+if(index%2===1){
+doc.setFillColor(245,245,245);
+doc.rect(10,y-6,180,rowHeight,"F");
+}
+doc.setTextColor(0);
+doc.text(String(item.name),15,y);
+doc.text(String(item.displayQuantity),100,y);
+doc.text(String(item.newpricePerUnit),135,y);
+doc.text(String(item.finalAmount.toFixed(2)),170,y);
+y+=rowHeight;
+});
+
+y-=rowHeight/2;
+doc.setDrawColor(150,150,150);
+doc.line(10,y,190,y);
+doc.setFont("helvetica","bold");
+doc.setFontSize(14);
+doc.setTextColor(0);
+
+const totalLabel=pdfTotalWeight>0?`Total (${pdfTotalWeight} kg)`:"Total";
+doc.text(totalLabel,125,y+8);
+doc.text(`${total.toFixed(2)}`,170,y+8);
+
+y+=20;
+doc.setFontSize(11);
+doc.setTextColor(80);
+const formattedInfo=paymentInfo.replace(/, /g,"\n");
+
+if(paymentInfo.includes("sflenterprises1@oksbi")){
+doc.setFont("helvetica","normal");
+doc.setFontSize(12);
+doc.text(formattedInfo.split("\n"),135,y);
+const qr=new QRious({value:`upi://pay?pa=sflenterprises1@oksbi&pn=SFL%20Enterprises&am=${total}&cu=INR`,size:80});
+const qrDataURL=qr.toDataURL();
+y+=8;
+doc.addImage(qrDataURL,"PNG",150,y,30,30);
+}else if(paymentInfo.includes("Sameer Enterprises")){
+doc.setFont("helvetica","normal");
+doc.setFontSize(12);
+doc.text(formattedInfo.split("\n"),135,y);
+const qr=new QRious({value:`upi://pay?pa=salarindiacorp@okhdfcbank&pn=Latif%20Chaudhary&am=${total}&cu=INR`,size:80});
+const qrDataURL=qr.toDataURL();
+y+=24;
+doc.addImage(qrDataURL,"PNG",150,y,30,30);
+}else{
+doc.setFont("helvetica","normal");
+doc.setFontSize(12);
+doc.text(formattedInfo.split("\n"),135,y);
+}
+
+doc.save(`${billNoText}.pdf`);
+
+if(!party&&history.length===0){alert("Cannot save empty bill!");return;}
+
+const billData={id:Date.now(),billNumber:billNumber,party:party,items:history,total:total};
+let savedBills=JSON.parse(localStorage.getItem("savedBills"))||[];
+savedBills.unshift(billData);
+if(savedBills.length>100)savedBills=savedBills.slice(0,100);
+
+try{
+localStorage.setItem("savedBills",JSON.stringify(savedBills));
+}catch(e){
+alert("Storage is full! Please delete some old bills.");
+}
+
+renderSavedBills();
+showNextBillNumber();
+}
+
+function renderSavedBills(){
+const billList=document.getElementById("billList");
+billList.innerHTML="";
+let savedBills=JSON.parse(localStorage.getItem("savedBills"))||[];
+
+savedBills.forEach(bill=>{
+const li=document.createElement("li");
+li.style.display="flex";
+li.style.justifyContent="space-between";
+li.style.alignItems="center";
+li.style.padding="5px 0";
+li.style.borderBottom="1px solid #ccc";
+
+const billText=document.createElement("span");
+const billDate=new Date(bill.id);
+const dateStr=billDate.toLocaleDateString("en-GB");
+const timeStr=billDate.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+
+billText.textContent=`${String(bill.billNumber).padStart(4,"0")}_${dateStr}_${timeStr}_${bill.party||"Unnamed"}_${bill.total.toFixed(2)}`;
+billText.style.cursor="pointer";
+billText.addEventListener("click",()=>loadBill(bill.id));
+
+const deleteBtn=document.createElement("button");
+deleteBtn.textContent="❌";
+deleteBtn.style.marginLeft="10px";
+deleteBtn.style.cursor="pointer";
+deleteBtn.style.border="none";
+deleteBtn.style.background="transparent";
+deleteBtn.style.color="red";
+deleteBtn.style.fontSize="16px";
+deleteBtn.addEventListener("click",e=>{e.stopPropagation();deleteBill(bill.id)});
+
+li.appendChild(billText);
+li.appendChild(deleteBtn);
+billList.appendChild(li);
+});
+}
+
+function loadBill(billId){
+let savedBills=JSON.parse(localStorage.getItem("savedBills"))||[];
+const bill=savedBills.find(b=>b.id===billId);
+if(!bill){alert("Bill not found!");return;}
+
+document.getElementById("partyInfo").value=bill.party;
+history=bill.items;
+total=bill.total;
+
+history.forEach(item=>{
+const productDetails=products[item.code]||customProducts[item.code];
+if(!productDetails)return;
+
+if(item.weightPerUnit===undefined)item.weightPerUnit=parseFloat(productDetails[5])||0;
+if(item.totalWeight===undefined)item.totalWeight=parseFloat((item.quantity*item.weightPerUnit).toFixed(2));
+
+if(!item.displayQuantity||!item.displayQuantity.includes("kg")){
+const unit=productDetails[1];
+item.displayQuantity=item.quantity==1&&unit===""?"":`${item.quantity} ${unit}`;
+if(item.weightPerUnit>0&&item.displayQuantity!=="")item.displayQuantity+=` (${item.totalWeight} kg)`;
+}
+});
+
+renderTable();
+}
+
+function deleteBill(billId){
+let savedBills=JSON.parse(localStorage.getItem("savedBills"))||[];
+savedBills=savedBills.filter(b=>b.id!==billId);
+localStorage.setItem("savedBills",JSON.stringify(savedBills));
+renderSavedBills();
+}
+
+function handleEnter(event){
+if(event.key==="Enter")addProduct();
+}
+
+document.getElementById("productInput").addEventListener("input",showProductInfo);
+
+function showProductInfo(){
+const input=document.getElementById("productInput").value.trim();
+const preview=document.getElementById("productInfoPreview");
+if(!input.includes(" ")){preview.textContent="";return;}
+
+const parts=input.split(" ");
+const productCode=parts.length===2?parts[1]:parts.length===3?parts[1]:"";
+if(!productCode){preview.textContent="";return;}
+
+const product=products[productCode]||customProducts[productCode];
+if(product){
+const weight=parseFloat(product[5])||0;
+preview.textContent=weight>0?`${product[0]} — ${weight} kg/unit`:product[0];
+}else preview.textContent="";
+}
+
+const inputField=document.getElementById("productInput");
+const suggestionList=document.getElementById("suggestionList");
+
+inputField.addEventListener("input",()=>{
+const query=inputField.value.trim().toLowerCase();
+suggestionList.innerHTML="";
+if(!query)return;
+
+let suggestions;
+if(query.startsWith("/")){
+const nameQuery=query.slice(1);
+suggestions=Object.entries(products).filter(([code,[name]])=>name.toLowerCase().includes(nameQuery));
+}else{
+suggestions=Object.entries(products).filter(([code])=>code.toLowerCase().includes(query));
+}
+
+suggestions.slice(0,10).forEach(([code,product])=>{
+const name=product[0],unit=product[1],price=product[2],weight=parseFloat(product[5])||0;
+const item=document.createElement("li");
+item.textContent=weight>0?`${code} - ${name} (₹${price}) (${weight} kg/unit)`:`${code} - ${name} (₹${price})`;
+item.style.padding="5px 10px";
+item.style.cursor="pointer";
+item.addEventListener("click",()=>{
+inputField.value=`${code} `;
+suggestionList.innerHTML="";
+inputField.focus();
+showProductInfo();
+});
+suggestionList.appendChild(item);
+});
+});
+
+document.addEventListener("click",e=>{
+if(!document.getElementById("suggestions").contains(e.target))suggestionList.innerHTML="";
+});
+
+window.addEventListener("DOMContentLoaded",()=>{
+renderSavedBills();
+showNextBillNumber();
+});
+</script>
 </body>
 </html>
